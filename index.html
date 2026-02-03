@@ -166,14 +166,40 @@
             z-index: 100;
         }
 
-        #room-code {
+        #room-code-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
             background: rgba(255, 255, 255, 0.1);
             padding: 8px 14px;
             border-radius: 8px;
+        }
+
+        #room-code {
             font-family: monospace;
             font-size: 1.4rem;
             letter-spacing: 4px;
             font-weight: bold;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        #copy-code-btn {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 4px;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        #copy-code-btn:hover {
+            opacity: 1;
+        }
+
+        #copy-code-btn.copied {
+            opacity: 1;
         }
 
         #leave-btn {
@@ -466,16 +492,16 @@
                 <input type="text" id="player-name" placeholder="Syötä nimesi" maxlength="12" autocomplete="off">
             </div>
 
-            <button class="btn btn-primary" id="create-game-btn">Luo uusi peli</button>
-
-            <div class="divider"><span>tai</span></div>
-
             <div class="input-group">
                 <label for="room-code-input">Huonekoodi</label>
                 <input type="text" id="room-code-input" placeholder="123456" maxlength="6" autocomplete="off" inputmode="numeric" pattern="[0-9]*">
             </div>
 
-            <button class="btn btn-secondary" id="join-game-btn">Liity peliin</button>
+            <button class="btn btn-primary" id="join-game-btn">Liity peliin</button>
+
+            <div class="divider"><span>tai</span></div>
+
+            <button class="btn btn-secondary" id="create-game-btn">Luo uusi peli</button>
 
             <div id="status-message"></div>
         </div>
@@ -484,7 +510,10 @@
     <!-- Pelinäkymä -->
     <div id="game">
         <div id="game-header">
-            <div id="room-code">------</div>
+            <div id="room-code-container">
+                <span id="room-code">------</span>
+                <button id="copy-code-btn" title="Kopioi koodi">📋</button>
+            </div>
             <div id="my-score" class="score-zero">0</div>
             <button id="leave-btn">Poistu</button>
         </div>
@@ -531,9 +560,10 @@
             isPaused: false,
             peer: null,
             connections: new Map(),  // peerId -> connection
-            players: new Map(),      // odot peerId -> {id, name, score, isPaused}
+            players: new Map(),      // peerId -> {id, name, score, isPaused}
             chains: new Map(),       // chainId -> {attacker, defender, turn, startTime, duration}
-            myActiveChains: new Map(), // chainId -> {opponentId, turn, startTime, duration}
+            myActiveChains: new Map(), // chainId -> {opponentId, turn, startTime, duration} - ketjut joihin minun pitää vastata
+            myPendingAttacks: new Map(), // targetId -> chainId - hyökkäykset joita odotan vastattavaksi
         };
 
         // ============================================
@@ -609,6 +639,7 @@
             // Tyhjennä tila
             state.connections.clear();
             state.players.clear();
+            state.myPendingAttacks.clear();
             state.roomCode = null;
             state.isHost = false;
             state.isPaused = false;
@@ -645,6 +676,30 @@
             el.textContent = isGain ? `+${points}` : `-${points}`;
             document.body.appendChild(el);
             setTimeout(() => el.remove(), 1000);
+        }
+
+        async function copyRoomCode() {
+            const code = state.roomCode;
+            if (!code) return;
+
+            try {
+                await navigator.clipboard.writeText(code);
+                const btn = document.getElementById('copy-code-btn');
+                btn.textContent = '✓';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = '📋';
+                    btn.classList.remove('copied');
+                }, 1500);
+            } catch (err) {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = code;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+            }
         }
 
         function renderPlayers() {
@@ -828,7 +883,7 @@
         // PELIMEKANIIKKA
         // ============================================
         function attackPlayer(targetId) {
-            // Tarkista onko jo aktiivinen ketju tämän pelaajan kanssa
+            // Tarkista onko jo aktiivinen ketju tämän pelaajan kanssa (hän hyökkäsi minua)
             for (const [chainId, chain] of state.myActiveChains) {
                 if (chain.opponentId === targetId) {
                     // Jo käynnissä oleva ketju - tämä on torjunta!
@@ -837,9 +892,29 @@
                 }
             }
 
+            // Tarkista onko minulla jo odottava hyökkäys tälle pelaajalle
+            if (state.myPendingAttacks.has(targetId)) {
+                // Olen jo hyökännyt tätä pelaajaa - nollaa timer (rangaistus turhasta klikkaamisesta)
+                const existingChainId = state.myPendingAttacks.get(targetId);
+                const duration = calculateTimerDuration(0);
+
+                // Lähetä sama hyökkäys uudelleen (nollaa timer)
+                sendToPlayer(targetId, {
+                    type: 'attack',
+                    chainId: existingChainId,
+                    attackerId: state.myId,
+                    turn: 0,
+                    duration: duration
+                });
+                return;
+            }
+
             // Uusi hyökkäys
             const chainId = `${state.myId}_${targetId}_${Date.now()}`;
             const duration = calculateTimerDuration(0);
+
+            // Tallenna odottava hyökkäys
+            state.myPendingAttacks.set(targetId, chainId);
 
             // Lähetä hyökkäys kohteelle
             sendToPlayer(targetId, {
@@ -854,7 +929,12 @@
         function handleAttack(data) {
             const { chainId, attackerId, turn, duration } = data;
 
-            // Lisää aktiivisiin ketjuihin
+            // Jos tämä on vastaus minun hyökkäykseeni, poista odottava hyökkäys
+            if (state.myPendingAttacks.get(attackerId) === chainId || turn > 0) {
+                state.myPendingAttacks.delete(attackerId);
+            }
+
+            // Lisää/päivitä aktiivisiin ketjuihin (päivittää timerin jos sama chainId)
             state.myActiveChains.set(chainId, {
                 opponentId: attackerId,
                 turn: turn,
@@ -961,7 +1041,15 @@
         }
 
         function handleChainWon(data) {
-            const { points } = data;
+            const { points, chainId } = data;
+
+            // Poista odottava hyökkäys (ketju päättyi, minä voitin)
+            for (const [targetId, cId] of state.myPendingAttacks) {
+                if (cId === chainId) {
+                    state.myPendingAttacks.delete(targetId);
+                    break;
+                }
+            }
 
             const myPlayer = state.players.get(state.myId);
             if (myPlayer) {
@@ -1390,7 +1478,14 @@
             document.getElementById('join-game-btn').addEventListener('click', joinGame);
 
             document.getElementById('player-name').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') createGame();
+                if (e.key === 'Enter') {
+                    const code = document.getElementById('room-code-input').value.trim();
+                    if (code) {
+                        joinGame();
+                    } else {
+                        createGame();
+                    }
+                }
             });
 
             document.getElementById('room-code-input').addEventListener('keypress', (e) => {
@@ -1406,6 +1501,9 @@
 
             // Poistu pelistä
             document.getElementById('leave-btn').addEventListener('click', leaveGame);
+
+            // Kopioi huonekoodi
+            document.getElementById('copy-code-btn').addEventListener('click', copyRoomCode);
 
             // Timer loop
             setInterval(checkTimers, CONFIG.TICK_RATE);

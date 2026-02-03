@@ -1505,6 +1505,13 @@
             // Kopioi huonekoodi
             document.getElementById('copy-code-btn').addEventListener('click', copyRoomCode);
 
+            // Ikkunan koon muutos - piirrä pelaajat uudelleen
+            window.addEventListener('resize', () => {
+                if (state.roomCode) {
+                    renderPlayers();
+                }
+            });
+
             // Timer loop
             setInterval(checkTimers, CONFIG.TICK_RATE);
 

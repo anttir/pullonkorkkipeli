@@ -598,6 +598,19 @@
             } catch (e) {}
         }
 
+        function storeRoomCode(code) {
+            try {
+                sessionStorage.setItem('korkkipeli_room', code);
+            } catch (e) {}
+        }
+
+        function getStoredRoomCode() {
+            try {
+                return sessionStorage.getItem('korkkipeli_room') || '';
+            } catch (e) {}
+            return '';
+        }
+
         function showStatus(message, isError = false) {
             const el = document.getElementById('status-message');
             el.textContent = message;
@@ -716,15 +729,19 @@
             const otherPlayers = playerList.filter(p => p.id !== state.myId);
             const myPlayer = playerList.find(p => p.id === state.myId);
 
-            const totalPlayers = playerList.length;
+            const n = otherPlayers.length;
 
             // Piirrä muut pelaajat tasaisesti ympyrään, jättäen kello 6 omalle pallolle
-            otherPlayers.forEach((player, index) => {
-                // Jaa muut pelaajat tasaisesti välille kello 12 → kello 6 (molemmin puolin)
-                // Kulma: aloita kello 12:sta (-π/2), kierrä myötäpäivään, ohita kello 6 (π/2)
-                const angleStep = (2 * Math.PI) / totalPlayers;
-                const angle = -Math.PI / 2 + (index + 1) * angleStep;
+            // Jaa ympyrä n+1 osaan, ohita keskimmäinen (kello 6)
+            const totalSlots = n + 1;
+            const slotAngle = (2 * Math.PI) / totalSlots;
+            const skipSlot = Math.floor(totalSlots / 2); // Kello 6 paikka
 
+            otherPlayers.forEach((player, index) => {
+                let slot = index;
+                if (slot >= skipSlot) slot++; // Ohita kello 6:n paikka
+
+                const angle = -Math.PI / 2 + slot * slotAngle;
                 const x = centerX + radius * Math.cos(angle);
                 const y = centerY + radius * Math.sin(angle);
 
@@ -1408,6 +1425,7 @@
             state.isHost = true;
 
             storePlayer(state.myId, state.myName);
+            storeRoomCode(state.roomCode);
 
             try {
                 await initPeer();
@@ -1452,6 +1470,7 @@
             state.isHost = false;
 
             storePlayer(state.myId, state.myName);
+            storeRoomCode(state.roomCode);
 
             try {
                 await initPeer();
@@ -1465,10 +1484,14 @@
         // ALUSTUS
         // ============================================
         function init() {
-            // Lataa tallennettu nimi
+            // Lataa tallennettu nimi ja huonekoodi
             const stored = getStoredPlayer();
             if (stored?.name) {
                 document.getElementById('player-name').value = stored.name;
+            }
+            const storedRoom = getStoredRoomCode();
+            if (storedRoom) {
+                document.getElementById('room-code-input').value = storedRoom;
             }
 
             // Event listenerit

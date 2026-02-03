@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Korkkipeli</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%236366f1'/><circle cx='50' cy='50' r='30' fill='%23fff'/></svg>">
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         * {
@@ -170,8 +171,24 @@
             padding: 8px 14px;
             border-radius: 8px;
             font-family: monospace;
-            font-size: 1.1rem;
-            letter-spacing: 2px;
+            font-size: 1.4rem;
+            letter-spacing: 4px;
+            font-weight: bold;
+        }
+
+        #leave-btn {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.5);
+            color: #ef4444;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        #leave-btn:hover {
+            background: rgba(239, 68, 68, 0.4);
         }
 
         #my-score {
@@ -455,7 +472,7 @@
 
             <div class="input-group">
                 <label for="room-code-input">Huonekoodi</label>
-                <input type="text" id="room-code-input" placeholder="Syötä koodi" maxlength="6" autocomplete="off" style="text-transform: uppercase;">
+                <input type="text" id="room-code-input" placeholder="123456" maxlength="6" autocomplete="off" inputmode="numeric" pattern="[0-9]*">
             </div>
 
             <button class="btn btn-secondary" id="join-game-btn">Liity peliin</button>
@@ -469,6 +486,7 @@
         <div id="game-header">
             <div id="room-code">------</div>
             <div id="my-score" class="score-zero">0</div>
+            <button id="leave-btn">Poistu</button>
         </div>
 
         <div id="game-area"></div>
@@ -522,10 +540,10 @@
         // APUFUNKTIOT
         // ============================================
         function generateRoomCode() {
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            // Käytetään vain numeroita selkeyden vuoksi (6 numeroa = 1 miljoona yhdistelmää)
             let code = '';
-            for (let i = 0; i < 5; i++) {
-                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            for (let i = 0; i < 6; i++) {
+                code += Math.floor(Math.random() * 10);
             }
             return code;
         }
@@ -573,6 +591,31 @@
             document.getElementById('game').style.display = 'block';
             document.getElementById('room-code').textContent = state.roomCode;
             renderPlayers();
+        }
+
+        function leaveGame() {
+            // Häviä kaikki ketjut
+            state.myActiveChains.forEach((chain, chainId) => {
+                resolveChainLoss(chainId, chain.opponentId, chain.turn + 1);
+            });
+            state.myActiveChains.clear();
+
+            // Sulje yhteydet
+            if (state.peer) {
+                state.peer.destroy();
+                state.peer = null;
+            }
+
+            // Tyhjennä tila
+            state.connections.clear();
+            state.players.clear();
+            state.roomCode = null;
+            state.isHost = false;
+            state.isPaused = false;
+
+            // Palaa lobbyyn
+            showLobby();
+            showStatus('');
         }
 
         function updateMyScore() {
@@ -1271,15 +1314,15 @@
             const nameInput = document.getElementById('player-name');
             const codeInput = document.getElementById('room-code-input');
             const name = nameInput.value.trim();
-            const code = codeInput.value.trim().toUpperCase();
+            const code = codeInput.value.trim().replace(/\D/g, ''); // Vain numerot
 
             if (!name) {
                 showStatus('Syötä nimesi ensin!', true);
                 return;
             }
 
-            if (!code || code.length < 4) {
-                showStatus('Syötä kelvollinen huonekoodi!', true);
+            if (!code || code.length !== 6) {
+                showStatus('Syötä 6-numeroinen huonekoodi!', true);
                 return;
             }
 
@@ -1330,6 +1373,9 @@
             document.getElementById('new-name-input').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') closeNameModal(true);
             });
+
+            // Poistu pelistä
+            document.getElementById('leave-btn').addEventListener('click', leaveGame);
 
             // Timer loop
             setInterval(checkTimers, CONFIG.TICK_RATE);

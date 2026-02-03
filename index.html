@@ -991,7 +991,16 @@
                     : `korkkipeli_${state.myId}_${Date.now()}`;
 
                 state.peer = new Peer(peerId, {
-                    debug: 0
+                    debug: 2, // Näyttää lokit konsolissa
+                    config: {
+                        iceServers: [
+                            { urls: 'stun:stun.l.google.com:19302' },
+                            { urls: 'stun:stun1.l.google.com:19302' },
+                            { urls: 'stun:stun2.l.google.com:19302' },
+                            { urls: 'stun:stun3.l.google.com:19302' },
+                            { urls: 'stun:stun4.l.google.com:19302' }
+                        ]
+                    }
                 });
 
                 state.peer.on('open', (id) => {
@@ -1052,9 +1061,18 @@
         function connectToHost() {
             return new Promise((resolve, reject) => {
                 const hostId = `korkkipeli_${state.roomCode}`;
-                const conn = state.peer.connect(hostId, { reliable: true });
+                console.log('Yritetään yhdistää hostiin:', hostId);
+
+                const conn = state.peer.connect(hostId, {
+                    reliable: true,
+                    serialization: 'json'
+                });
+
+                let resolved = false;
 
                 conn.on('open', () => {
+                    if (resolved) return;
+                    resolved = true;
                     console.log('Connected to host');
                     state.connections.set(hostId, conn);
 
@@ -1078,19 +1096,31 @@
 
                 conn.on('close', () => {
                     console.log('Disconnected from host');
-                    alert('Yhteys isäntään katkesi!');
-                    showLobby();
+                    if (!resolved) {
+                        resolved = true;
+                        reject(new Error('Yhteys suljettiin ennen avautumista'));
+                    } else {
+                        alert('Yhteys isäntään katkesi!');
+                        leaveGame();
+                    }
                 });
 
                 conn.on('error', (err) => {
-                    reject(err);
+                    console.error('Connection error:', err);
+                    if (!resolved) {
+                        resolved = true;
+                        reject(new Error('Yhteysvirhe: ' + (err.message || err.type || 'tuntematon')));
+                    }
                 });
 
+                // Pidempi timeout (15 sekuntia)
                 setTimeout(() => {
-                    if (!conn.open) {
-                        reject(new Error('Yhteyden muodostus aikakatkaistiin'));
+                    if (!resolved) {
+                        resolved = true;
+                        conn.close();
+                        reject(new Error('Yhteyden muodostus aikakatkaistiin. Tarkista koodi ja että isäntä on yhä pelissä.'));
                     }
-                }, 10000);
+                }, 15000);
             });
         }
 

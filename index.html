@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Korkkipeli</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        /* Lobby-näkymä */
+        #lobby {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        #lobby h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
+        }
+
+        #lobby .subtitle {
+            color: #888;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .lobby-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 30px;
+            width: 100%;
+            max-width: 360px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #6366f1;
+        }
+
+        .input-group input::placeholder {
+            color: #666;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: #fff;
+            margin-bottom: 12px;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 24px 0;
+            color: #666;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .divider span {
+            padding: 0 16px;
+            font-size: 0.85rem;
+        }
+
+        #status-message {
+            margin-top: 20px;
+            text-align: center;
+            color: #f59e0b;
+            font-size: 0.9rem;
+            min-height: 24px;
+        }
+
+        /* Pelinäkymä */
+        #game {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        #game-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, transparent 100%);
+            z-index: 100;
+        }
+
+        #room-code {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 1.1rem;
+            letter-spacing: 2px;
+        }
+
+        #my-score {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .score-positive { color: #10b981; }
+        .score-negative { color: #ef4444; }
+        .score-zero { color: #fff; }
+
+        #game-area {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        /* Pelaajan pallo */
+        .player-ball {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.3s ease-out, opacity 0.3s;
+            transform: translate(-50%, -50%);
+        }
+
+        .player-ball:active {
+            transform: translate(-50%, -50%) scale(0.95);
+        }
+
+        .player-ball.self {
+            cursor: default;
+        }
+
+        .player-ball.self:active {
+            transform: translate(-50%, -50%);
+        }
+
+        .player-ball.paused {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .player-ball.paused:active {
+            transform: translate(-50%, -50%);
+        }
+
+        .ball-inner {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+            position: relative;
+            z-index: 2;
+        }
+
+        .player-ball.self .ball-inner {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+            border: 3px solid #fff;
+        }
+
+        .player-name {
+            font-size: 0.7rem;
+            font-weight: 600;
+            max-width: 56px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            text-align: center;
+        }
+
+        .player-score-small {
+            font-size: 0.65rem;
+            opacity: 0.8;
+        }
+
+        .pause-icon {
+            display: none;
+            font-size: 1.5rem;
+        }
+
+        .player-ball.paused .player-name,
+        .player-ball.paused .player-score-small {
+            display: none;
+        }
+
+        .player-ball.paused .pause-icon {
+            display: block;
+        }
+
+        /* Timer-kehä */
+        .timer-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .timer-ring svg {
+            transform: rotate(-90deg);
+        }
+
+        .timer-ring circle {
+            fill: none;
+            stroke-linecap: round;
+        }
+
+        .timer-ring .bg {
+            stroke: rgba(255, 255, 255, 0.1);
+        }
+
+        .timer-ring .progress {
+            stroke: #f59e0b;
+            transition: stroke-dashoffset 0.05s linear;
+        }
+
+        .timer-ring.urgent .progress {
+            stroke: #ef4444;
+        }
+
+        /* Nimen vaihto -modaali */
+        #name-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #name-modal.visible {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #1a1a2e;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 30px;
+            width: 90%;
+            max-width: 320px;
+        }
+
+        .modal-content h2 {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        /* Pistetaulu */
+        #scoreboard {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 12px;
+            padding: 12px 16px;
+            max-height: 200px;
+            overflow-y: auto;
+            min-width: 140px;
+            z-index: 100;
+        }
+
+        #scoreboard h3 {
+            font-size: 0.8rem;
+            color: #888;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .scoreboard-entry {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 0.85rem;
+        }
+
+        .scoreboard-entry.self {
+            color: #10b981;
+            font-weight: 600;
+        }
+
+        /* Ketjuviiva */
+        .chain-line {
+            position: absolute;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Pisteilmoitus */
+        .point-notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem;
+            font-weight: bold;
+            pointer-events: none;
+            animation: pointPop 1s ease-out forwards;
+            z-index: 500;
+        }
+
+        .point-notification.gain {
+            color: #10b981;
+        }
+
+        .point-notification.loss {
+            color: #ef4444;
+        }
+
+        @keyframes pointPop {
+            0% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(0.5);
+            }
+            20% {
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -60%) scale(1);
+            }
+        }
+
+        /* Responsiivisuus */
+        @media (max-width: 480px) {
+            #lobby h1 {
+                font-size: 2rem;
+            }
+
+            .player-ball {
+                width: 70px;
+                height: 70px;
+            }
+
+            .ball-inner {
+                width: 54px;
+                height: 54px;
+            }
+
+            .player-name {
+                font-size: 0.6rem;
+                max-width: 46px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Lobby-näkymä -->
+    <div id="lobby">
+        <h1>Korkkipeli</h1>
+        <p class="subtitle">Moninpelattava reaktiopeli</p>
+
+        <div class="lobby-card">
+            <div class="input-group">
+                <label for="player-name">Pelaajan nimi</label>
+                <input type="text" id="player-name" placeholder="Syötä nimesi" maxlength="12" autocomplete="off">
+            </div>
+
+            <button class="btn btn-primary" id="create-game-btn">Luo uusi peli</button>
+
+            <div class="divider"><span>tai</span></div>
+
+            <div class="input-group">
+                <label for="room-code-input">Huonekoodi</label>
+                <input type="text" id="room-code-input" placeholder="Syötä koodi" maxlength="6" autocomplete="off" style="text-transform: uppercase;">
+            </div>
+
+            <button class="btn btn-secondary" id="join-game-btn">Liity peliin</button>
+
+            <div id="status-message"></div>
+        </div>
+    </div>
+
+    <!-- Pelinäkymä -->
+    <div id="game">
+        <div id="game-header">
+            <div id="room-code">------</div>
+            <div id="my-score" class="score-zero">0</div>
+        </div>
+
+        <div id="game-area"></div>
+
+        <div id="scoreboard">
+            <h3>Pisteet</h3>
+            <div id="scoreboard-list"></div>
+        </div>
+    </div>
+
+    <!-- Nimen vaihto -modaali -->
+    <div id="name-modal">
+        <div class="modal-content">
+            <h2>Vaihda nimi</h2>
+            <div class="input-group">
+                <input type="text" id="new-name-input" placeholder="Uusi nimi" maxlength="12" autocomplete="off">
+            </div>
+            <button class="btn btn-primary" id="save-name-btn">Tallenna</button>
+            <button class="btn btn-secondary" id="cancel-name-btn" style="margin-top: 10px;">Peruuta</button>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // KONFIGURAATIO
+        // ============================================
+        const CONFIG = {
+            INITIAL_TIMER: 2.0,      // Aloitustimer sekunteina
+            TIMER_DECREASE: 0.2,     // Timer-lyhennys per vuoro
+            MIN_TIMER: 0.2,          // Minimi timer
+            TICK_RATE: 50,           // Päivitysväli ms
+        };
+
+        // ============================================
+        // TILA
+        // ============================================
+        const state = {
+            myId: null,
+            myName: '',
+            roomCode: null,
+            isHost: false,
+            isPaused: false,
+            peer: null,
+            connections: new Map(),  // peerId -> connection
+            players: new Map(),      // odot peerId -> {id, name, score, isPaused}
+            chains: new Map(),       // chainId -> {attacker, defender, turn, startTime, duration}
+            myActiveChains: new Map(), // chainId -> {opponentId, turn, startTime, duration}
+        };
+
+        // ============================================
+        // APUFUNKTIOT
+        // ============================================
+        function generateRoomCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            for (let i = 0; i < 5; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return code;
+        }
+
+        function generatePlayerId() {
+            return 'p_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        function getStoredPlayer() {
+            try {
+                const stored = localStorage.getItem('korkkipeli_player');
+                if (stored) {
+                    return JSON.parse(stored);
+                }
+            } catch (e) {}
+            return null;
+        }
+
+        function storePlayer(id, name) {
+            try {
+                localStorage.setItem('korkkipeli_player', JSON.stringify({ id, name }));
+            } catch (e) {}
+        }
+
+        function showStatus(message, isError = false) {
+            const el = document.getElementById('status-message');
+            el.textContent = message;
+            el.style.color = isError ? '#ef4444' : '#f59e0b';
+        }
+
+        function calculateTimerDuration(turn) {
+            return Math.max(CONFIG.MIN_TIMER, CONFIG.INITIAL_TIMER - (turn * CONFIG.TIMER_DECREASE));
+        }
+
+        // ============================================
+        // UI PÄIVITYKSET
+        // ============================================
+        function showLobby() {
+            document.getElementById('lobby').style.display = 'flex';
+            document.getElementById('game').style.display = 'none';
+        }
+
+        function showGame() {
+            document.getElementById('lobby').style.display = 'none';
+            document.getElementById('game').style.display = 'block';
+            document.getElementById('room-code').textContent = state.roomCode;
+            renderPlayers();
+        }
+
+        function updateMyScore() {
+            const scoreEl = document.getElementById('my-score');
+            const myPlayer = state.players.get(state.myId);
+            const score = myPlayer ? myPlayer.score : 0;
+            scoreEl.textContent = score > 0 ? `+${score}` : score;
+            scoreEl.className = score > 0 ? 'score-positive' : (score < 0 ? 'score-negative' : 'score-zero');
+        }
+
+        function updateScoreboard() {
+            const list = document.getElementById('scoreboard-list');
+            const sorted = Array.from(state.players.values())
+                .sort((a, b) => b.score - a.score);
+
+            list.innerHTML = sorted.map(p => `
+                <div class="scoreboard-entry ${p.id === state.myId ? 'self' : ''}">
+                    <span>${p.name}</span>
+                    <span>${p.score > 0 ? '+' : ''}${p.score}</span>
+                </div>
+            `).join('');
+        }
+
+        function showPointNotification(points, isGain) {
+            const el = document.createElement('div');
+            el.className = `point-notification ${isGain ? 'gain' : 'loss'}`;
+            el.textContent = isGain ? `+${points}` : `-${points}`;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 1000);
+        }
+
+        function renderPlayers() {
+            const gameArea = document.getElementById('game-area');
+            const rect = gameArea.getBoundingClientRect();
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            const radius = Math.min(centerX, centerY) * 0.7;
+
+            // Poista vanhat pallot
+            gameArea.querySelectorAll('.player-ball').forEach(el => el.remove());
+
+            const playerList = Array.from(state.players.values());
+            const otherPlayers = playerList.filter(p => p.id !== state.myId);
+            const myPlayer = playerList.find(p => p.id === state.myId);
+
+            // Piirrä muut pelaajat ympyrään
+            otherPlayers.forEach((player, index) => {
+                // Aloita kello 12:sta ja jaa tasaisesti, jättäen kello 6 vapaaksi
+                const totalSlots = otherPlayers.length + 1;
+                const angleOffset = -Math.PI / 2; // Aloita ylhäältä
+                const skipSlot = Math.floor(totalSlots / 2); // Kello 6 paikka
+
+                let slotIndex = index;
+                if (slotIndex >= skipSlot) slotIndex++;
+
+                const angle = angleOffset + (slotIndex / totalSlots) * 2 * Math.PI;
+                const x = centerX + radius * Math.cos(angle);
+                const y = centerY + radius * Math.sin(angle);
+
+                createPlayerBall(player, x, y, false);
+            });
+
+            // Piirrä oma pallo kello 6:een
+            if (myPlayer) {
+                const x = centerX;
+                const y = centerY + radius;
+                createPlayerBall(myPlayer, x, y, true);
+            }
+
+            updateScoreboard();
+            updateMyScore();
+        }
+
+        function createPlayerBall(player, x, y, isSelf) {
+            const gameArea = document.getElementById('game-area');
+
+            const ball = document.createElement('div');
+            ball.className = `player-ball ${isSelf ? 'self' : ''} ${player.isPaused ? 'paused' : ''}`;
+            ball.dataset.playerId = player.id;
+            ball.style.left = `${x}px`;
+            ball.style.top = `${y}px`;
+
+            ball.innerHTML = `
+                <div class="timer-ring" style="display: none;">
+                    <svg width="90" height="90">
+                        <circle class="bg" cx="45" cy="45" r="40" stroke-width="6"/>
+                        <circle class="progress" cx="45" cy="45" r="40" stroke-width="6"
+                            stroke-dasharray="251.2" stroke-dashoffset="0"/>
+                    </svg>
+                </div>
+                <div class="ball-inner">
+                    <span class="player-name">${escapeHtml(player.name)}</span>
+                    <span class="player-score-small">${player.score > 0 ? '+' : ''}${player.score}</span>
+                    <span class="pause-icon">⏸</span>
+                </div>
+            `;
+
+            if (isSelf) {
+                ball.addEventListener('click', () => {
+                    if (!state.isPaused) {
+                        openNameModal();
+                    }
+                });
+            } else {
+                ball.addEventListener('click', () => {
+                    if (!player.isPaused && !state.isPaused) {
+                        attackPlayer(player.id);
+                    }
+                });
+            }
+
+            gameArea.appendChild(ball);
+            return ball;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function updateTimerDisplay(playerId, progress, isUrgent, strokeWidth) {
+            const ball = document.querySelector(`.player-ball[data-player-id="${playerId}"]`);
+            if (!ball) return;
+
+            const timerRing = ball.querySelector('.timer-ring');
+            const progressCircle = timerRing.querySelector('.progress');
+            const bgCircle = timerRing.querySelector('.bg');
+
+            if (progress <= 0) {
+                timerRing.style.display = 'none';
+                return;
+            }
+
+            timerRing.style.display = 'block';
+            timerRing.classList.toggle('urgent', isUrgent);
+
+            // Päivitä viivan paksuus ketjun pituuden mukaan
+            progressCircle.setAttribute('stroke-width', strokeWidth);
+            bgCircle.setAttribute('stroke-width', strokeWidth);
+
+            const circumference = 2 * Math.PI * 40;
+            const dashoffset = circumference * (1 - progress);
+            progressCircle.style.strokeDashoffset = dashoffset;
+        }
+
+        // ============================================
+        // NIMEN VAIHTO
+        // ============================================
+        function openNameModal() {
+            document.getElementById('new-name-input').value = state.myName;
+            document.getElementById('name-modal').classList.add('visible');
+
+            // Aseta pause päälle
+            setPaused(true);
+        }
+
+        function closeNameModal(save) {
+            const modal = document.getElementById('name-modal');
+            modal.classList.remove('visible');
+
+            if (save) {
+                const newName = document.getElementById('new-name-input').value.trim();
+                if (newName && newName !== state.myName) {
+                    state.myName = newName;
+                    storePlayer(state.myId, state.myName);
+
+                    const myPlayer = state.players.get(state.myId);
+                    if (myPlayer) {
+                        myPlayer.name = state.myName;
+                    }
+
+                    // Ilmoita muille
+                    broadcast({
+                        type: 'player_update',
+                        player: { id: state.myId, name: state.myName, score: myPlayer?.score || 0, isPaused: false }
+                    });
+                }
+            }
+
+            setPaused(false);
+        }
+
+        function setPaused(paused) {
+            state.isPaused = paused;
+
+            const myPlayer = state.players.get(state.myId);
+            if (myPlayer) {
+                myPlayer.isPaused = paused;
+            }
+
+            // Häviä kaikki käynnissä olevat ketjut
+            if (paused) {
+                state.myActiveChains.forEach((chain, chainId) => {
+                    resolveChainLoss(chainId, chain.opponentId, chain.turn);
+                });
+                state.myActiveChains.clear();
+            }
+
+            // Ilmoita muille
+            broadcast({
+                type: 'player_update',
+                player: { id: state.myId, name: state.myName, score: myPlayer?.score || 0, isPaused: paused }
+            });
+
+            renderPlayers();
+        }
+
+        // ============================================
+        // PELIMEKANIIKKA
+        // ============================================
+        function attackPlayer(targetId) {
+            // Tarkista onko jo aktiivinen ketju tämän pelaajan kanssa
+            for (const [chainId, chain] of state.myActiveChains) {
+                if (chain.opponentId === targetId) {
+                    // Jo käynnissä oleva ketju - tämä on torjunta!
+                    defendChain(chainId);
+                    return;
+                }
+            }
+
+            // Uusi hyökkäys
+            const chainId = `${state.myId}_${targetId}_${Date.now()}`;
+            const duration = calculateTimerDuration(0);
+
+            // Lähetä hyökkäys kohteelle
+            sendToPlayer(targetId, {
+                type: 'attack',
+                chainId: chainId,
+                attackerId: state.myId,
+                turn: 0,
+                duration: duration
+            });
+        }
+
+        function handleAttack(data) {
+            const { chainId, attackerId, turn, duration } = data;
+
+            // Lisää aktiivisiin ketjuihin
+            state.myActiveChains.set(chainId, {
+                opponentId: attackerId,
+                turn: turn,
+                startTime: Date.now(),
+                duration: duration
+            });
+
+            renderPlayers();
+        }
+
+        function defendChain(chainId) {
+            const chain = state.myActiveChains.get(chainId);
+            if (!chain) return;
+
+            const elapsed = (Date.now() - chain.startTime) / 1000;
+            if (elapsed > chain.duration) {
+                // Liian myöhään!
+                return;
+            }
+
+            // Onnistunut torjunta - poista oma ketju
+            state.myActiveChains.delete(chainId);
+
+            // Lähetä vastahyökkäys
+            const newTurn = chain.turn + 1;
+            const newDuration = calculateTimerDuration(newTurn);
+
+            sendToPlayer(chain.opponentId, {
+                type: 'attack',
+                chainId: chainId,
+                attackerId: state.myId,
+                turn: newTurn,
+                duration: newDuration
+            });
+
+            renderPlayers();
+        }
+
+        function checkTimers() {
+            const now = Date.now();
+            const expiredChains = [];
+
+            state.myActiveChains.forEach((chain, chainId) => {
+                const elapsed = (now - chain.startTime) / 1000;
+                const progress = Math.max(0, 1 - elapsed / chain.duration);
+                const isUrgent = progress < 0.3;
+                const strokeWidth = Math.min(4 + chain.turn * 2, 12); // Paksuuntuu ketjun edetessä
+
+                updateTimerDisplay(chain.opponentId, progress, isUrgent, strokeWidth);
+
+                if (elapsed >= chain.duration) {
+                    expiredChains.push(chainId);
+                }
+            });
+
+            // Käsittele vanhentuneet ketjut
+            expiredChains.forEach(chainId => {
+                const chain = state.myActiveChains.get(chainId);
+                if (chain) {
+                    resolveChainLoss(chainId, chain.opponentId, chain.turn + 1);
+                    state.myActiveChains.delete(chainId);
+                }
+            });
+
+            // Piilota timerit pelaajilta joilla ei ole aktiivista ketjua
+            const activeOpponents = new Set();
+            state.myActiveChains.forEach(chain => activeOpponents.add(chain.opponentId));
+
+            state.players.forEach(player => {
+                if (player.id !== state.myId && !activeOpponents.has(player.id)) {
+                    updateTimerDisplay(player.id, 0, false, 6);
+                }
+            });
+        }
+
+        function resolveChainLoss(chainId, winnerId, chainLength) {
+            // Minä hävisin
+            const myPlayer = state.players.get(state.myId);
+            const winner = state.players.get(winnerId);
+
+            if (myPlayer) {
+                myPlayer.score -= chainLength;
+            }
+
+            showPointNotification(chainLength, false);
+
+            // Ilmoita voittajalle
+            sendToPlayer(winnerId, {
+                type: 'chain_won',
+                chainId: chainId,
+                points: chainLength
+            });
+
+            // Päivitä UI
+            updateMyScore();
+            updateScoreboard();
+            renderPlayers();
+
+            // Broadcast päivitetty pistetilanne
+            broadcast({
+                type: 'player_update',
+                player: { id: state.myId, name: state.myName, score: myPlayer?.score || 0, isPaused: state.isPaused }
+            });
+        }
+
+        function handleChainWon(data) {
+            const { points } = data;
+
+            const myPlayer = state.players.get(state.myId);
+            if (myPlayer) {
+                myPlayer.score += points;
+            }
+
+            showPointNotification(points, true);
+
+            updateMyScore();
+            updateScoreboard();
+            renderPlayers();
+
+            // Broadcast päivitetty pistetilanne
+            broadcast({
+                type: 'player_update',
+                player: { id: state.myId, name: state.myName, score: myPlayer?.score || 0, isPaused: state.isPaused }
+            });
+        }
+
+        // ============================================
+        // VERKKOKERROS (PeerJS)
+        // ============================================
+        function initPeer() {
+            return new Promise((resolve, reject) => {
+                const peerId = state.isHost
+                    ? `korkkipeli_${state.roomCode}`
+                    : `korkkipeli_${state.myId}_${Date.now()}`;
+
+                state.peer = new Peer(peerId, {
+                    debug: 0
+                });
+
+                state.peer.on('open', (id) => {
+                    console.log('Peer connected:', id);
+                    resolve();
+                });
+
+                state.peer.on('error', (err) => {
+                    console.error('Peer error:', err);
+                    if (err.type === 'unavailable-id') {
+                        reject(new Error('Huone on jo olemassa'));
+                    } else if (err.type === 'peer-unavailable') {
+                        reject(new Error('Huonetta ei löydy'));
+                    } else {
+                        reject(err);
+                    }
+                });
+
+                state.peer.on('connection', (conn) => {
+                    handleConnection(conn);
+                });
+
+                state.peer.on('disconnected', () => {
+                    console.log('Peer disconnected, reconnecting...');
+                    state.peer.reconnect();
+                });
+            });
+        }
+
+        function handleConnection(conn) {
+            conn.on('open', () => {
+                console.log('Connection opened:', conn.peer);
+                state.connections.set(conn.peer, conn);
+
+                if (state.isHost) {
+                    // Lähetä nykyinen pelitila uudelle pelaajalle
+                    conn.send({
+                        type: 'game_state',
+                        players: Array.from(state.players.values())
+                    });
+                }
+            });
+
+            conn.on('data', (data) => {
+                handleMessage(conn.peer, data);
+            });
+
+            conn.on('close', () => {
+                console.log('Connection closed:', conn.peer);
+                handlePlayerDisconnect(conn.peer);
+            });
+
+            conn.on('error', (err) => {
+                console.error('Connection error:', err);
+            });
+        }
+
+        function connectToHost() {
+            return new Promise((resolve, reject) => {
+                const hostId = `korkkipeli_${state.roomCode}`;
+                const conn = state.peer.connect(hostId, { reliable: true });
+
+                conn.on('open', () => {
+                    console.log('Connected to host');
+                    state.connections.set(hostId, conn);
+
+                    // Lähetä liittymisviesti
+                    conn.send({
+                        type: 'join',
+                        player: {
+                            id: state.myId,
+                            name: state.myName,
+                            score: 0,
+                            isPaused: false
+                        }
+                    });
+
+                    resolve();
+                });
+
+                conn.on('data', (data) => {
+                    handleMessage(conn.peer, data);
+                });
+
+                conn.on('close', () => {
+                    console.log('Disconnected from host');
+                    alert('Yhteys isäntään katkesi!');
+                    showLobby();
+                });
+
+                conn.on('error', (err) => {
+                    reject(err);
+                });
+
+                setTimeout(() => {
+                    if (!conn.open) {
+                        reject(new Error('Yhteyden muodostus aikakatkaistiin'));
+                    }
+                }, 10000);
+            });
+        }
+
+        function handleMessage(fromPeer, data) {
+            console.log('Message from', fromPeer, ':', data.type);
+
+            switch (data.type) {
+                case 'join':
+                    handlePlayerJoin(fromPeer, data.player);
+                    break;
+                case 'game_state':
+                    handleGameState(data);
+                    break;
+                case 'player_joined':
+                    handlePlayerJoined(data.player);
+                    break;
+                case 'player_left':
+                    handlePlayerLeft(data.playerId);
+                    break;
+                case 'player_update':
+                    handlePlayerUpdate(data.player);
+                    break;
+                case 'attack':
+                    handleAttack(data);
+                    break;
+                case 'chain_won':
+                    handleChainWon(data);
+                    break;
+                case 'relay':
+                    // Host välittää viestin eteenpäin
+                    if (data.to === state.myId) {
+                        handleMessage(data.from, data.payload);
+                    } else if (state.isHost) {
+                        relayMessage(data.from, data.to, data.payload);
+                    }
+                    break;
+            }
+        }
+
+        function handlePlayerJoin(fromPeer, player) {
+            if (!state.isHost) return;
+
+            // Lisää pelaaja
+            state.players.set(player.id, player);
+
+            // Tallenna peer-player mapping
+            state.connections.get(fromPeer).playerId = player.id;
+
+            // Ilmoita kaikille muille
+            broadcast({
+                type: 'player_joined',
+                player: player
+            }, fromPeer);
+
+            renderPlayers();
+        }
+
+        function handleGameState(data) {
+            // Vastaanotettu pelitila hostilta
+            data.players.forEach(player => {
+                state.players.set(player.id, player);
+            });
+
+            // Lisää oma pelaaja
+            state.players.set(state.myId, {
+                id: state.myId,
+                name: state.myName,
+                score: 0,
+                isPaused: false
+            });
+
+            showGame();
+        }
+
+        function handlePlayerJoined(player) {
+            state.players.set(player.id, player);
+            renderPlayers();
+        }
+
+        function handlePlayerLeft(playerId) {
+            state.players.delete(playerId);
+
+            // Poista kaikki ketjut tämän pelaajan kanssa
+            state.myActiveChains.forEach((chain, chainId) => {
+                if (chain.opponentId === playerId) {
+                    state.myActiveChains.delete(chainId);
+                }
+            });
+
+            renderPlayers();
+        }
+
+        function handlePlayerUpdate(player) {
+            const existing = state.players.get(player.id);
+            if (existing) {
+                Object.assign(existing, player);
+            } else {
+                state.players.set(player.id, player);
+            }
+
+            // Host välittää päivityksen muille pelaajille
+            if (state.isHost && player.id !== state.myId) {
+                broadcast({
+                    type: 'player_update',
+                    player: player
+                });
+            }
+
+            renderPlayers();
+            updateScoreboard();
+        }
+
+        function handlePlayerDisconnect(peerId) {
+            const conn = state.connections.get(peerId);
+            if (conn && conn.playerId) {
+                const playerId = conn.playerId;
+                state.players.delete(playerId);
+
+                if (state.isHost) {
+                    broadcast({
+                        type: 'player_left',
+                        playerId: playerId
+                    });
+                }
+            }
+            state.connections.delete(peerId);
+            renderPlayers();
+        }
+
+        function broadcast(message, excludePeer = null) {
+            state.connections.forEach((conn, peerId) => {
+                if (peerId !== excludePeer && conn.open) {
+                    conn.send(message);
+                }
+            });
+        }
+
+        function sendToPlayer(playerId, message) {
+            // Jos viesti on tarkoitettu itselle, käsittele suoraan
+            if (playerId === state.myId) {
+                handleMessage(state.myId, message);
+                return;
+            }
+
+            if (state.isHost) {
+                // Host lähettää suoraan pelaajille
+                state.connections.forEach((conn) => {
+                    if (conn.playerId === playerId && conn.open) {
+                        conn.send(message);
+                    }
+                });
+            } else {
+                // Muut pelaajat lähettävät hostin kautta
+                const hostId = `korkkipeli_${state.roomCode}`;
+                const hostConn = state.connections.get(hostId);
+                if (hostConn && hostConn.open) {
+                    hostConn.send({
+                        type: 'relay',
+                        from: state.myId,
+                        to: playerId,
+                        payload: message
+                    });
+                }
+            }
+        }
+
+        function relayMessage(from, to, payload) {
+            state.connections.forEach((conn) => {
+                if (conn.playerId === to && conn.open) {
+                    conn.send({
+                        type: 'relay',
+                        from: from,
+                        to: to,
+                        payload: payload
+                    });
+                }
+            });
+        }
+
+        // ============================================
+        // PELIN LUOMINEN JA LIITTYMINEN
+        // ============================================
+        async function createGame() {
+            const nameInput = document.getElementById('player-name');
+            const name = nameInput.value.trim();
+
+            if (!name) {
+                showStatus('Syötä nimesi ensin!', true);
+                return;
+            }
+
+            showStatus('Luodaan peliä...');
+
+            // Alusta pelaaja
+            const stored = getStoredPlayer();
+            state.myId = stored?.id || generatePlayerId();
+            state.myName = name;
+            state.roomCode = generateRoomCode();
+            state.isHost = true;
+
+            storePlayer(state.myId, state.myName);
+
+            try {
+                await initPeer();
+
+                // Lisää oma pelaaja
+                state.players.set(state.myId, {
+                    id: state.myId,
+                    name: state.myName,
+                    score: 0,
+                    isPaused: false
+                });
+
+                showGame();
+            } catch (err) {
+                showStatus(err.message || 'Virhe pelin luomisessa', true);
+            }
+        }
+
+        async function joinGame() {
+            const nameInput = document.getElementById('player-name');
+            const codeInput = document.getElementById('room-code-input');
+            const name = nameInput.value.trim();
+            const code = codeInput.value.trim().toUpperCase();
+
+            if (!name) {
+                showStatus('Syötä nimesi ensin!', true);
+                return;
+            }
+
+            if (!code || code.length < 4) {
+                showStatus('Syötä kelvollinen huonekoodi!', true);
+                return;
+            }
+
+            showStatus('Liitytään peliin...');
+
+            // Alusta pelaaja
+            const stored = getStoredPlayer();
+            state.myId = stored?.id || generatePlayerId();
+            state.myName = name;
+            state.roomCode = code;
+            state.isHost = false;
+
+            storePlayer(state.myId, state.myName);
+
+            try {
+                await initPeer();
+                await connectToHost();
+            } catch (err) {
+                showStatus(err.message || 'Virhe peliin liittymisessä', true);
+            }
+        }
+
+        // ============================================
+        // ALUSTUS
+        // ============================================
+        function init() {
+            // Lataa tallennettu nimi
+            const stored = getStoredPlayer();
+            if (stored?.name) {
+                document.getElementById('player-name').value = stored.name;
+            }
+
+            // Event listenerit
+            document.getElementById('create-game-btn').addEventListener('click', createGame);
+            document.getElementById('join-game-btn').addEventListener('click', joinGame);
+
+            document.getElementById('player-name').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') createGame();
+            });
+
+            document.getElementById('room-code-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') joinGame();
+            });
+
+            // Nimen vaihto
+            document.getElementById('save-name-btn').addEventListener('click', () => closeNameModal(true));
+            document.getElementById('cancel-name-btn').addEventListener('click', () => closeNameModal(false));
+            document.getElementById('new-name-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') closeNameModal(true);
+            });
+
+            // Timer loop
+            setInterval(checkTimers, CONFIG.TICK_RATE);
+
+            // Ikkunan sulkeminen
+            window.addEventListener('beforeunload', () => {
+                if (state.peer) {
+                    state.peer.destroy();
+                }
+            });
+        }
+
+        // Käynnistä kun DOM on valmis
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>

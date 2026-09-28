@@ -44,6 +44,7 @@
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body {
   margin: 0; background: var(--bg); color: var(--ink);
   font-family: var(--font-body); font-size: 16px; line-height: 1.45;
@@ -72,15 +73,19 @@ button { cursor: pointer; }
   color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgb(0 0 0 / 0.15); }
-.quota { display: grid; gap: 4px; }
-.qline { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, auto); gap: 6px; align-items: center; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.quota { display: grid; gap: 6px; }
+.qline { display: grid; grid-template-columns: 4.2rem repeat(5, minmax(0, 1fr)); gap: 4px; align-items: center; font-size: 0.78rem; font-variant-numeric: tabular-nums; }
 .qline .qn { font-weight: 700; color: var(--navy); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.q { border-radius: 999px; padding: 2px 9px; font-weight: 700; min-width: 4.6rem; text-align: center; }
-.q.up { background: var(--up-soft); color: var(--up); }
-.q.mid { background: var(--mid-soft); color: var(--mid); }
-.q.down { background: var(--down-soft); color: var(--down); }
-.q.full { outline: 1.5px solid currentColor; }
+.q { border-radius: 999px; padding: 2px 0; font-weight: 700; text-align: center; white-space: nowrap; }
+.q.plain { background: transparent; color: var(--ink); }
+.q.full { color: var(--muted); }
 .q.over { background: var(--down); color: #fff; }
+/* five-step scale: strong ends are solid, ±1 are tinted */
+.v-m2 { background: var(--down); color: var(--surface); }
+.v-m1 { background: var(--down-soft); color: var(--down); }
+.v-0 { background: var(--mid-soft); color: var(--mid); }
+.v-p1 { background: var(--up-soft); color: var(--up); }
+.v-p2 { background: var(--up); color: var(--surface); }
 .progress { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .meter { height: 4px; background: var(--mid-soft); border-radius: 2px; overflow: hidden; }
 .meter i { display: block; height: 100%; background: var(--accent); transition: width .25s; }
@@ -99,25 +104,23 @@ button { cursor: pointer; }
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 12px; display: grid; gap: 10px;
 }
-.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.who { display: grid; gap: 4px; min-width: 0; }
+.pair { display: grid; gap: 6px; }
+.who { display: grid; grid-template-columns: 4.2rem minmax(0, 1fr); gap: 6px; align-items: center; min-width: 0; }
 .who .wn { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row .name { font-weight: 700; }
 .row .meta { font-size: 0.8rem; color: var(--muted); }
 .row .cat { text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.68rem; font-weight: 700; color: var(--navy); }
-.votes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.votes { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
 .vbtn {
-  height: 44px; min-width: 0; border-radius: 10px; border: 1.5px solid var(--line); background: var(--surface);
-  display: grid; place-items: center; color: var(--muted); padding: 0;
+  height: 42px; min-width: 0; border-radius: 10px; border: 1.5px solid var(--line);
+  padding: 0; font-weight: 700; font-size: 0.95rem; font-variant-numeric: tabular-nums;
 }
-.vbtn svg { width: 22px; height: 22px; }
-.vbtn.up[aria-pressed="true"] { background: var(--up-soft); border-color: var(--up); color: var(--up); }
-.vbtn.mid[aria-pressed="true"] { background: var(--mid-soft); border-color: var(--mid); color: var(--ink); }
-.vbtn.down[aria-pressed="true"] { background: var(--down-soft); border-color: var(--down); color: var(--down); }
+.vbtn[aria-pressed="true"] { border-color: transparent; }
+.vbtn[aria-pressed="false"] { background: var(--surface); color: var(--muted); }
 .vbtn:disabled { opacity: 0.3; cursor: not-allowed; }
 .row.unvoted { border-style: dashed; }
-.limits { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.limits input { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); font-variant-numeric: tabular-nums; }
+.limits { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.limits input { width: 100%; padding: 10px 6px; text-align: center; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); font-variant-numeric: tabular-nums; }
 
 /* results */
 .controls { display: grid; gap: 10px; padding-block: 14px 4px; }
@@ -140,9 +143,6 @@ button { cursor: pointer; }
   width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; font-weight: 700; font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
 }
-.pill.p1 { background: var(--up-soft); color: var(--up); }
-.pill.p0 { background: var(--mid-soft); color: var(--mid); }
-.pill.pn { background: var(--down-soft); color: var(--down); }
 .pill.pu { border: 1.5px dashed var(--line); color: var(--muted); }
 .score { min-width: 3.2rem; text-align: right; font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; font-variant-numeric: tabular-nums; }
 .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.8rem; color: var(--muted); padding-block: 4px; }
@@ -232,15 +232,11 @@ button { cursor: pointer; }
 
     <div class="panel">
       <h2>Vote limits</h2>
-      <p>How many of each vote one person can give. The default splits 50 sports into thirds.</p>
+      <p>How many of each vote one person can give. The default splits 50 sports into five equal groups of 10.</p>
       <label class="toggle"><input type="checkbox" id="limitOn"> Limit votes per person</label>
-      <div class="limits">
-        <div class="field"><label for="limUp">Thumbs up</label><input type="number" id="limUp" min="0" max="50" inputmode="numeric"></div>
-        <div class="field"><label for="limMid">Neutral</label><input type="number" id="limMid" min="0" max="50" inputmode="numeric"></div>
-        <div class="field"><label for="limDown">Thumbs down</label><input type="number" id="limDown" min="0" max="50" inputmode="numeric"></div>
-      </div>
+      <div class="limits" id="limits"></div>
       <p id="limSum"></p>
-      <div class="row-btns"><button type="button" class="btn ghost" id="thirdsBtn">Reset to thirds (17 / 16 / 17)</button></div>
+      <div class="row-btns"><button type="button" class="btn ghost" id="thirdsBtn">Reset to 10 of each</button></div>
     </div>
 
     <div class="panel">
@@ -249,7 +245,7 @@ button { cursor: pointer; }
       <div class="field"><label for="exportWho">Copy the code for</label><select id="exportWho"></select></div>
       <div class="code" id="exportCode"></div>
       <div class="row-btns"><button type="button" class="btn" id="copyBtn">Copy code</button></div>
-      <div class="field"><label for="importCode">Paste a code</label><textarea id="importCode" placeholder="HSP1:Name:+0-…"></textarea></div>
+      <div class="field"><label for="importCode">Paste a code</label><textarea id="importCode" placeholder="HSP2:Name:43210…"></textarea></div>
       <div class="field"><label for="importWho">Save it as the votes of</label><select id="importWho"></select></div>
       <div class="row-btns"><button type="button" class="btn" id="importBtn">Import votes</button></div>
       <div class="msg" id="shareMsg" role="status"></div>
@@ -324,53 +320,66 @@ button { cursor: pointer; }
 
   const CATS = [...new Set(SPORTS.map(s => s.cat))];
 
-  // Each algorithm returns { score, out } for votes a, b in {-1, 0, 1} (unvoted counts as 0).
+  // Each algorithm returns { score, tie, out } for votes a, b in -2..+2 (unvoted counts as 0).
   const ALGOS = {
-    sum: { label: "Total points", note: "Your two votes added together (−2 to +2). Ties are broken by the lower of the two votes.",
+    sum: { label: "Total points", note: "Your two votes added together (−4 to +4). Ties are broken by the lower of the two votes.",
       fn: (a, b) => ({ score: a + b, tie: Math.min(a, b) }) },
     maximin: { label: "Least disliked", note: "Ranks by the unhappier person's vote. A sport you both find OK beats one only one of you loves.",
       fn: (a, b) => ({ score: Math.min(a, b), tie: a + b }) },
-    product: { label: "Shared happiness", note: "Multiplies happiness (thumbs down = 1, neutral = 2, thumbs up = 3). Rewards sports you both like over lopsided ones. Range 1–9.",
-      fn: (a, b) => ({ score: (a + 2) * (b + 2), tie: a + b }) },
-    veto: { label: "Veto", note: "Any thumbs down is a veto: the sport drops out. The rest are ranked by total points.",
-      fn: (a, b) => ({ score: a + b, tie: 0, out: a < 0 || b < 0 }) },
-    approval: { label: "Thumbs-up count", note: "Counts only thumbs up. Good for finding things at least one of you is excited about.",
-      fn: (a, b) => ({ score: (a > 0) + (b > 0), tie: a + b }) },
-    conflict: { label: "Most disagreement", note: "Distance between your votes (0–2). The top of this list is what to talk about.",
+    product: { label: "Shared happiness", note: "Multiplies happiness on a 1–5 scale (−2 = 1 … +2 = 5). Rewards sports you both like over lopsided ones. Range 1–25.",
+      fn: (a, b) => ({ score: (a + 3) * (b + 3), tie: a + b }) },
+    veto: { label: "Veto", note: "A −2 from either of you is a veto: the sport drops out. The rest are ranked by total points.",
+      fn: (a, b) => ({ score: a + b, tie: Math.min(a, b), out: a <= -2 || b <= -2 }) },
+    approval: { label: "Enthusiasm", note: "Adds up only the positive votes (0–4). Negatives don't pull a sport down, so it finds things at least one of you is excited about.",
+      fn: (a, b) => ({ score: Math.max(a, 0) + Math.max(b, 0), tie: a + b }) },
+    conflict: { label: "Most disagreement", note: "Distance between your votes (0–4). The top of this list is what to talk about.",
       fn: (a, b) => ({ score: Math.abs(a - b), tie: -(a + b) }) },
   };
 
+  // Scale is -2..+2, listed left to right. Limits are keyed by vote value.
+  const VALS = [-2, -1, 0, 1, 2];
+  const LABEL = { "-2": "No way", "-1": "Not keen", "0": "Neutral", "1": "Keen", "2": "Love it" };
+  const tenEach = on => ({ on, "-2": 10, "-1": 10, "0": 10, "1": 10, "2": 10 });
+
   const KEY = "helsinki-sport-picker-v1";
-  const defaults = () => ({ names: ["Antti", "Partner"], votes: [{}, {}], view: "vote", limits: { on: true, up: 17, mid: 16, down: 17 }, algo: "sum", sort: "score-desc", cat: "All", voteCat: "All" });
+  const defaults = () => ({ scale: 2, names: ["Antti", "Partner"], votes: [{}, {}], view: "vote", limits: tenEach(true), algo: "sum", sort: "score-desc", cat: "All", voteCat: "All" });
   let S = defaults();
-  try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign(defaults(), JSON.parse(raw)); } catch (e) {}
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) {
+      const old = JSON.parse(raw);
+      // Migrate from the old -1/0/+1 scale: +1 becomes +2, -1 becomes -2, 0 stays.
+      if (!old.scale) {
+        old.votes = (old.votes || [{}, {}]).map(vs => Object.fromEntries(Object.entries(vs).map(([k, v]) => [k, v * 2])));
+        old.limits = tenEach(old.limits ? old.limits.on !== false : true);
+        old.scale = 2;
+      }
+      S = Object.assign(defaults(), old);
+    }
+  } catch (e) {}
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+  save();
 
   const $ = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const vote = (who, id) => S.votes[who][id];
-  const fmt = v => v === undefined ? "·" : v > 0 ? "+1" : v < 0 ? "−1" : "0";
-  const KINDS = [["up", 1, "Thumbs up"], ["mid", 0, "Neutral"], ["down", -1, "Thumbs down"]];
+  const fmt = v => v === undefined ? "·" : v > 0 ? "+" + v : v < 0 ? "−" + -v : "0";
+  const vcls = v => v === undefined ? "pu" : v > 0 ? "v-p" + v : v < 0 ? "v-m" + -v : "v-0";
   const used = (who, val) => Object.values(S.votes[who]).filter(v => v === val).length;
-  const limitOf = kind => S.limits.on ? S.limits[kind] : Infinity;
-  const pillCls = v => v === undefined ? "pu" : v > 0 ? "p1" : v < 0 ? "pn" : "p0";
-
-  const ICON = {
-    up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10v11H4V10h3z" fill="none"/><path d="M7 10l4-8a2.5 2.5 0 0 1 3 2.5V9h5a2 2 0 0 1 2 2.3l-1.4 8A2 2 0 0 1 17.6 21H7"/></svg>',
-    mid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>',
-    down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 14V3h3v11h-3z" fill="none"/><path d="M17 14l-4 8a2.5 2.5 0 0 1-3-2.5V15H5a2 2 0 0 1-2-2.3l1.4-8A2 2 0 0 1 6.4 3H17"/></svg>',
-  };
+  const limitOf = val => S.limits.on ? S.limits[val] : Infinity;
 
   function renderBar() {
     for (const b of document.querySelectorAll("[data-view]")) b.setAttribute("aria-pressed", String(b.dataset.view === S.view));
     for (const v of ["vote", "results", "share"]) $("view-" + v).hidden = S.view !== v;
     $("quota").hidden = S.view !== "vote";
     $("progressBlock").hidden = S.view === "vote";
-    $("quota").innerHTML = [0, 1].map(who => `<div class="qline"><span class="qn">${esc(S.names[who])}</span>` +
-      KINDS.map(([kind, val, label]) => {
-        const n = used(who, val), lim = limitOf(kind);
+    // Header row of vote values, then "used/limit" per person.
+    $("quota").innerHTML = `<div class="qline"><span></span>${VALS.map(val => `<span class="q ${vcls(val)}" title="${LABEL[val]}">${fmt(val)}</span>`).join("")}</div>` +
+      [0, 1].map(who => `<div class="qline"><span class="qn">${esc(S.names[who])}</span>` +
+      VALS.map(val => {
+        const n = used(who, val), lim = limitOf(val);
         const cls = n > lim ? " over" : n === lim ? " full" : "";
-        return `<span class="q ${kind}${cls}" title="${label}">${kind === "up" ? "+1" : kind === "mid" ? "0" : "−1"} ${n}${S.limits.on ? "/" + lim : ""}</span>`;
+        return `<span class="q plain${cls}">${n}${S.limits.on ? "/" + lim : ""}</span>`;
       }).join("") + `</div>`).join("");
     const both = SPORTS.filter(s => vote(0, s.id) !== undefined && vote(1, s.id) !== undefined).length;
     $("progText").textContent = "Voted by both";
@@ -382,14 +391,14 @@ button { cursor: pointer; }
     $("chips").innerHTML = ["All", ...CATS].map(c =>
       `<button type="button" data-chip="${esc(c)}" aria-pressed="${S.voteCat === c}">${esc(c)}</button>`).join("");
     const items = SPORTS.filter(s => S.voteCat === "All" || s.cat === S.voteCat);
-    const full = [0, 1].map(who => Object.fromEntries(KINDS.map(([kind, val]) => [val, used(who, val) >= limitOf(kind)])));
+    const full = [0, 1].map(who => Object.fromEntries(VALS.map(val => [val, used(who, val) >= limitOf(val)])));
     $("voteList").innerHTML = items.map(s => {
       const group = who => {
         const v = vote(who, s.id);
         return `<div class="who"><span class="wn">${esc(S.names[who])}</span><div class="votes">` +
-          KINDS.map(([kind, val, label]) => `<button type="button" class="vbtn ${kind}" data-who="${who}" data-id="${s.id}" data-val="${val}"
+          VALS.map(val => `<button type="button" class="vbtn ${v === val ? vcls(val) : ""}" data-who="${who}" data-id="${s.id}" data-val="${val}"
             aria-pressed="${v === val}" ${full[who][val] && v !== val ? "disabled" : ""}
-            aria-label="${esc(S.names[who])}: ${label} for ${esc(s.name)}">${ICON[kind]}</button>`).join("") + `</div></div>`;
+            aria-label="${esc(S.names[who])}: ${LABEL[val]} (${fmt(val)}) for ${esc(s.name)}">${fmt(val)}</button>`).join("") + `</div></div>`;
       };
       const done = vote(0, s.id) !== undefined && vote(1, s.id) !== undefined;
       return `<li class="row${done ? "" : " unvoted"}">
@@ -435,24 +444,27 @@ button { cursor: pointer; }
     else list = [...rows].sort((x, y) => x.s.cat.localeCompare(y.s.cat) || (y.score - x.score));
 
     const anyVotes = rows.some(r => r.a !== undefined || r.b !== undefined);
-    $("resultList").innerHTML = (anyVotes ? "" : `<li class="empty">No votes yet. Go to Vote and give each sport a thumbs up, neutral or thumbs down.</li>`) +
+    $("resultList").innerHTML = (anyVotes ? "" : `<li class="empty">No votes yet. Go to Vote and give each sport a vote from −2 to +2.</li>`) +
       list.map(r => `<li class="rrow${r.out ? " out" : ""}${r.rank === 1 ? " top" : ""}">
         <div class="rank">${r.rank}</div>
         <div style="min-width:0"><div class="name">${esc(r.s.name)}</div><div class="meta">${esc(r.s.cat)}${r.out ? " · vetoed" : ""}</div></div>
-        <div class="pills"><span class="pill ${pillCls(r.a)}" title="${esc(S.names[0])}">${fmt(r.a)}</span><span class="pill ${pillCls(r.b)}" title="${esc(S.names[1])}">${fmt(r.b)}</span></div>
-        <div class="score">${r.out ? "✕" : (r.score > 0 && S.algo === "sum" ? "+" : "") + r.score}</div>
+        <div class="pills"><span class="pill ${vcls(r.a)}" title="${esc(S.names[0])}">${fmt(r.a)}</span><span class="pill ${vcls(r.b)}" title="${esc(S.names[1])}">${fmt(r.b)}</span></div>
+        <div class="score">${r.out ? "✕" : (r.score > 0 && (S.algo === "sum" || S.algo === "veto" || S.algo === "maximin") ? "+" : "") + r.score}</div>
       </li>`).join("");
   }
 
-  // Share code: HSP1:<name>:<one char per sport: + 0 - .>
-  const encode = who => "HSP1:" + S.names[who].replace(/:/g, "") + ":" +
-    SPORTS.map(s => { const v = vote(who, s.id); return v === undefined ? "." : v > 0 ? "+" : v < 0 ? "-" : "0"; }).join("");
+  // Share code: HSP2:<name>:<one char per sport: vote + 2 (0-4), or . for unvoted>. Old HSP1 codes (+ 0 -) still import.
+  const encode = who => "HSP2:" + S.names[who].replace(/:/g, "") + ":" +
+    SPORTS.map(s => { const v = vote(who, s.id); return v === undefined ? "." : String(v + 2); }).join("");
 
   function renderShare() {
     $("name0").value = S.names[0]; $("name1").value = S.names[1];
     $("limitOn").checked = S.limits.on;
-    $("limUp").value = S.limits.up; $("limMid").value = S.limits.mid; $("limDown").value = S.limits.down;
-    const sum = S.limits.up + S.limits.mid + S.limits.down;
+    const lim = $("limits");
+    if (!lim.children.length) lim.innerHTML = VALS.map(val =>
+      `<div class="field"><label for="lim${val + 2}">${fmt(val)}</label><input type="number" id="lim${val + 2}" data-lim="${val}" min="0" max="50" inputmode="numeric"></div>`).join("");
+    for (const inp of lim.querySelectorAll("input")) if (document.activeElement !== inp) inp.value = S.limits[inp.dataset.lim];
+    const sum = VALS.reduce((t, v) => t + S.limits[v], 0);
     $("limSum").textContent = sum === SPORTS.length ? `Adds up to ${sum}: everyone votes on every sport.`
       : sum < SPORTS.length ? `Adds up to ${sum}, so ${SPORTS.length - sum} sports stay unvoted per person (they count as neutral).`
       : `Adds up to ${sum}, more than the ${SPORTS.length} sports, so not every vote gets used.`;
@@ -493,11 +505,11 @@ button { cursor: pointer; }
     S.names[i] = e.target.value.trim() || (i ? "Partner" : "Antti"); save(); renderBar(); renderShare();
   }));
   $("limitOn").addEventListener("change", e => { S.limits.on = e.target.checked; save(); renderShare(); });
-  [["limUp", "up"], ["limMid", "mid"], ["limDown", "down"]].forEach(([id, k]) => $(id).addEventListener("input", e => {
+  $("limits").addEventListener("input", e => {
     const n = parseInt(e.target.value, 10);
-    if (n >= 0 && n <= 50) { S.limits[k] = n; save(); renderShare(); }
-  }));
-  $("thirdsBtn").addEventListener("click", () => { S.limits = { on: true, up: 17, mid: 16, down: 17 }; save(); renderShare(); });
+    if (n >= 0 && n <= 50) { S.limits[e.target.dataset.lim] = n; save(); renderShare(); }
+  });
+  $("thirdsBtn").addEventListener("click", () => { S.limits = tenEach(true); save(); renderShare(); });
   $("exportWho").addEventListener("change", renderShare);
 
   const msg = (text, err) => { const m = $("shareMsg"); m.textContent = text; m.classList.toggle("err", !!err); };
@@ -507,12 +519,15 @@ button { cursor: pointer; }
     try { navigator.clipboard.writeText(code).then(() => msg("Copied. Send it to the other phone."), fallback); } catch (e) { fallback(); }
   });
   $("importBtn").addEventListener("click", () => {
-    const m = $("importCode").value.trim().match(/^HSP1:([^:]*):([+0.\-]+)$/);
-    if (!m) return msg("That doesn't look like a vote code. It should start with HSP1:", true);
+    const m = $("importCode").value.trim().match(/^HSP([12]):([^:]*):([^:]+)$/);
+    if (!m || !(m[1] === "1" ? /^[+0.\-]+$/ : /^[0-4.]+$/).test(m[3])) return msg("That doesn't look like a vote code. It should start with HSP2: (or HSP1:)", true);
     const who = +$("importWho").value, v = {};
-    [...m[2]].forEach((c, i) => { if (SPORTS[i] && c !== ".") v[SPORTS[i].id] = c === "+" ? 1 : c === "-" ? -1 : 0; });
+    [...m[3]].forEach((c, i) => {
+      if (!SPORTS[i] || c === ".") return;
+      v[SPORTS[i].id] = m[1] === "1" ? (c === "+" ? 2 : c === "-" ? -2 : 0) : +c - 2;
+    });
     S.votes[who] = v;
-    if (m[1]) S.names[who] = m[1];
+    if (m[2]) S.names[who] = m[2];
     save(); render();
     msg(`Imported ${Object.keys(v).length} votes for ${S.names[who]}.`);
     $("importCode").value = "";

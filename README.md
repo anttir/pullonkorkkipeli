@@ -23,4 +23,4 @@ HTML + CSS + JS, PeerJS (WebRTC), GitHub Pages
 
 ## Helsinki Sport Picker
 
-`sports/index.html` – kahden hengen äänestys 50 urheilulajista pääkaupunkiseudulla (👍 / 0 / 👎), molemmat samassa näkymässä, ääniä rajoitettu (oletus 17 / 16 / 17 per henkilö), tulokset kuudella pisteytystavalla. Äänet tallentuvat selaimen localStorageen; kahden puhelimen äänet yhdistetään Share-välilehden koodilla.
+`sports/index.html` – kahden hengen äänestys 50 urheilulajista pääkaupunkiseudulla (asteikko −2…+2), molemmat samassa näkymässä, ääniä rajoitettu (oletus 10 kutakin per henkilö), tulokset kuudella pisteytystavalla. Äänet tallentuvat selaimen localStorageen; kahden puhelimen äänet yhdistetään Share-välilehden koodilla.

@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
 <style>
-/* Layout: one narrow column, sticky voter bar on top, tabs for Vote / Results / Share. Colours: Baltic navy + sea-ice neutrals, a single tram-green accent. */
+/* Layout: one narrow column, sticky quota bar on top, both voters side by side in each row, tabs for Vote / Results / Share. Colours: Baltic navy + sea-ice neutrals, a single tram-green accent. */
 :root {
   --bg: #eef2f3;
   --surface: #ffffff;
@@ -72,7 +72,15 @@ button { cursor: pointer; }
   color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgb(0 0 0 / 0.15); }
-.seg.voters button[aria-pressed="true"] { background: var(--navy); color: var(--bg); }
+.quota { display: grid; gap: 4px; }
+.qline { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, auto); gap: 6px; align-items: center; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.qline .qn { font-weight: 700; color: var(--navy); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.q { border-radius: 999px; padding: 2px 9px; font-weight: 700; min-width: 4.6rem; text-align: center; }
+.q.up { background: var(--up-soft); color: var(--up); }
+.q.mid { background: var(--mid-soft); color: var(--mid); }
+.q.down { background: var(--down-soft); color: var(--down); }
+.q.full { outline: 1.5px solid currentColor; }
+.q.over { background: var(--down); color: #fff; }
 .progress { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .meter { height: 4px; background: var(--mid-soft); border-radius: 2px; overflow: hidden; }
 .meter i { display: block; height: 100%; background: var(--accent); transition: width .25s; }
@@ -89,22 +97,27 @@ button { cursor: pointer; }
 .list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
 .row {
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center;
+  padding: 12px; display: grid; gap: 10px;
 }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.who { display: grid; gap: 4px; min-width: 0; }
+.who .wn { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row .name { font-weight: 700; }
 .row .meta { font-size: 0.8rem; color: var(--muted); }
 .row .cat { text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.68rem; font-weight: 700; color: var(--navy); }
-.votes { display: flex; gap: 6px; }
+.votes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
 .vbtn {
-  width: 44px; height: 44px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--surface);
+  height: 44px; min-width: 0; border-radius: 10px; border: 1.5px solid var(--line); background: var(--surface);
   display: grid; place-items: center; color: var(--muted); padding: 0;
 }
 .vbtn svg { width: 22px; height: 22px; }
 .vbtn.up[aria-pressed="true"] { background: var(--up-soft); border-color: var(--up); color: var(--up); }
 .vbtn.mid[aria-pressed="true"] { background: var(--mid-soft); border-color: var(--mid); color: var(--ink); }
 .vbtn.down[aria-pressed="true"] { background: var(--down-soft); border-color: var(--down); color: var(--down); }
+.vbtn:disabled { opacity: 0.3; cursor: not-allowed; }
 .row.unvoted { border-style: dashed; }
-.other { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+.limits { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.limits input { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); font-variant-numeric: tabular-nums; }
 
 /* results */
 .controls { display: grid; gap: 10px; padding-block: 14px 4px; }
@@ -160,7 +173,7 @@ button { cursor: pointer; }
 <div class="wrap">
   <header class="intro">
     <h1>Helsinki Sport Picker</h1>
-    <p>50 sports for two in the Helsinki region. Both of you vote, then let the maths pick.</p>
+    <p>50 sports for two in the Helsinki region. Vote side by side, then let the maths pick.</p>
   </header>
 
   <div class="bar">
@@ -169,10 +182,7 @@ button { cursor: pointer; }
       <button type="button" id="tab-results" data-view="results">Results</button>
       <button type="button" id="tab-share" data-view="share">Share</button>
     </div>
-    <div id="voterBlock" class="seg voters" role="group" aria-label="Who is voting">
-      <button type="button" id="voter-0" data-voter="0"></button>
-      <button type="button" id="voter-1" data-voter="1"></button>
-    </div>
+    <div id="quota" class="quota" aria-live="polite"></div>
     <div id="progressBlock">
       <div class="progress"><span id="progText"></span><span id="progCount"></span></div>
       <div class="meter"><i id="progBar"></i></div>
@@ -218,7 +228,19 @@ button { cursor: pointer; }
         <div class="field"><label for="name0">Voter 1</label><input type="text" id="name0" maxlength="20"></div>
         <div class="field"><label for="name1">Voter 2</label><input type="text" id="name1" maxlength="20"></div>
       </div>
-      <label class="toggle"><input type="checkbox" id="hideOther"> Hide the other person's votes while voting</label>
+    </div>
+
+    <div class="panel">
+      <h2>Vote limits</h2>
+      <p>How many of each vote one person can give. The default splits 50 sports into thirds.</p>
+      <label class="toggle"><input type="checkbox" id="limitOn"> Limit votes per person</label>
+      <div class="limits">
+        <div class="field"><label for="limUp">Thumbs up</label><input type="number" id="limUp" min="0" max="50" inputmode="numeric"></div>
+        <div class="field"><label for="limMid">Neutral</label><input type="number" id="limMid" min="0" max="50" inputmode="numeric"></div>
+        <div class="field"><label for="limDown">Thumbs down</label><input type="number" id="limDown" min="0" max="50" inputmode="numeric"></div>
+      </div>
+      <p id="limSum"></p>
+      <div class="row-btns"><button type="button" class="btn ghost" id="thirdsBtn">Reset to thirds (17 / 16 / 17)</button></div>
     </div>
 
     <div class="panel">
@@ -319,7 +341,7 @@ button { cursor: pointer; }
   };
 
   const KEY = "helsinki-sport-picker-v1";
-  const defaults = () => ({ names: ["Antti", "Partner"], votes: [{}, {}], voter: 0, view: "vote", hideOther: true, algo: "sum", sort: "score-desc", cat: "All", voteCat: "All" });
+  const defaults = () => ({ names: ["Antti", "Partner"], votes: [{}, {}], view: "vote", limits: { on: true, up: 17, mid: 16, down: 17 }, algo: "sum", sort: "score-desc", cat: "All", voteCat: "All" });
   let S = defaults();
   try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign(defaults(), JSON.parse(raw)); } catch (e) {}
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
@@ -328,6 +350,9 @@ button { cursor: pointer; }
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const vote = (who, id) => S.votes[who][id];
   const fmt = v => v === undefined ? "·" : v > 0 ? "+1" : v < 0 ? "−1" : "0";
+  const KINDS = [["up", 1, "Thumbs up"], ["mid", 0, "Neutral"], ["down", -1, "Thumbs down"]];
+  const used = (who, val) => Object.values(S.votes[who]).filter(v => v === val).length;
+  const limitOf = kind => S.limits.on ? S.limits[kind] : Infinity;
   const pillCls = v => v === undefined ? "pu" : v > 0 ? "p1" : v < 0 ? "pn" : "p0";
 
   const ICON = {
@@ -339,39 +364,41 @@ button { cursor: pointer; }
   function renderBar() {
     for (const b of document.querySelectorAll("[data-view]")) b.setAttribute("aria-pressed", String(b.dataset.view === S.view));
     for (const v of ["vote", "results", "share"]) $("view-" + v).hidden = S.view !== v;
-    $("voterBlock").hidden = S.view !== "vote";
-    [0, 1].forEach(i => { const b = $("voter-" + i); b.textContent = S.names[i]; b.setAttribute("aria-pressed", String(S.voter === i)); });
-    const n = SPORTS.filter(s => vote(S.voter, s.id) !== undefined).length;
+    $("quota").hidden = S.view !== "vote";
+    $("progressBlock").hidden = S.view === "vote";
+    $("quota").innerHTML = [0, 1].map(who => `<div class="qline"><span class="qn">${esc(S.names[who])}</span>` +
+      KINDS.map(([kind, val, label]) => {
+        const n = used(who, val), lim = limitOf(kind);
+        const cls = n > lim ? " over" : n === lim ? " full" : "";
+        return `<span class="q ${kind}${cls}" title="${label}">${kind === "up" ? "+1" : kind === "mid" ? "0" : "−1"} ${n}${S.limits.on ? "/" + lim : ""}</span>`;
+      }).join("") + `</div>`).join("");
     const both = SPORTS.filter(s => vote(0, s.id) !== undefined && vote(1, s.id) !== undefined).length;
-    if (S.view === "vote") {
-      $("progText").textContent = S.names[S.voter] + " has voted";
-      $("progCount").textContent = n + " / " + SPORTS.length;
-      $("progBar").style.width = (100 * n / SPORTS.length) + "%";
-    } else {
-      $("progText").textContent = "Voted by both";
-      $("progCount").textContent = both + " / " + SPORTS.length;
-      $("progBar").style.width = (100 * both / SPORTS.length) + "%";
-    }
+    $("progText").textContent = "Voted by both";
+    $("progCount").textContent = both + " / " + SPORTS.length;
+    $("progBar").style.width = (100 * both / SPORTS.length) + "%";
   }
 
   function renderVote() {
     $("chips").innerHTML = ["All", ...CATS].map(c =>
       `<button type="button" data-chip="${esc(c)}" aria-pressed="${S.voteCat === c}">${esc(c)}</button>`).join("");
-    const other = 1 - S.voter;
     const items = SPORTS.filter(s => S.voteCat === "All" || s.cat === S.voteCat);
+    const full = [0, 1].map(who => Object.fromEntries(KINDS.map(([kind, val]) => [val, used(who, val) >= limitOf(kind)])));
     $("voteList").innerHTML = items.map(s => {
-      const v = vote(S.voter, s.id);
-      const ov = vote(other, s.id);
-      const btn = (kind, val, label) =>
-        `<button type="button" class="vbtn ${kind}" data-id="${s.id}" data-val="${val}" aria-pressed="${v === val}" aria-label="${label} ${esc(s.name)}">${ICON[kind]}</button>`;
-      return `<li class="row${v === undefined ? " unvoted" : ""}">
+      const group = who => {
+        const v = vote(who, s.id);
+        return `<div class="who"><span class="wn">${esc(S.names[who])}</span><div class="votes">` +
+          KINDS.map(([kind, val, label]) => `<button type="button" class="vbtn ${kind}" data-who="${who}" data-id="${s.id}" data-val="${val}"
+            aria-pressed="${v === val}" ${full[who][val] && v !== val ? "disabled" : ""}
+            aria-label="${esc(S.names[who])}: ${label} for ${esc(s.name)}">${ICON[kind]}</button>`).join("") + `</div></div>`;
+      };
+      const done = vote(0, s.id) !== undefined && vote(1, s.id) !== undefined;
+      return `<li class="row${done ? "" : " unvoted"}">
         <div style="min-width:0">
           <div class="cat">${esc(s.cat)}</div>
           <div class="name">${esc(s.name)}</div>
           <div class="meta">${esc(s.note)}</div>
-          ${S.hideOther ? "" : `<div class="other">${esc(S.names[other])}: ${ov === undefined ? "not voted" : fmt(ov)}</div>`}
         </div>
-        <div class="votes">${btn("up", 1, "Thumbs up")}${btn("mid", 0, "Neutral")}${btn("down", -1, "Thumbs down")}</div>
+        <div class="pair">${group(0)}${group(1)}</div>
       </li>`;
     }).join("");
   }
@@ -423,7 +450,12 @@ button { cursor: pointer; }
 
   function renderShare() {
     $("name0").value = S.names[0]; $("name1").value = S.names[1];
-    $("hideOther").checked = S.hideOther;
+    $("limitOn").checked = S.limits.on;
+    $("limUp").value = S.limits.up; $("limMid").value = S.limits.mid; $("limDown").value = S.limits.down;
+    const sum = S.limits.up + S.limits.mid + S.limits.down;
+    $("limSum").textContent = sum === SPORTS.length ? `Adds up to ${sum}: everyone votes on every sport.`
+      : sum < SPORTS.length ? `Adds up to ${sum}, so ${SPORTS.length - sum} sports stay unvoted per person (they count as neutral).`
+      : `Adds up to ${sum}, more than the ${SPORTS.length} sports, so not every vote gets used.`;
     const opts = [0, 1].map(i => `<option value="${i}">${esc(S.names[i])}</option>`).join("");
     const ew = $("exportWho").value || "0", iw = $("importWho").value || "1";
     $("exportWho").innerHTML = opts; $("importWho").innerHTML = opts;
@@ -442,15 +474,13 @@ button { cursor: pointer; }
     const t = e.target.closest("button");
     if (!t) return;
     if (t.dataset.view) { S.view = t.dataset.view; save(); render(); window.scrollTo(0, 0); return; }
-    if (t.dataset.voter) { S.voter = +t.dataset.voter; save(); render(); return; }
     if (t.dataset.chip) { S.voteCat = t.dataset.chip; save(); render(); return; }
     if (t.dataset.id) {
-      const v = +t.dataset.val, cur = S.votes[S.voter];
+      const v = +t.dataset.val, cur = S.votes[+t.dataset.who];
       if (cur[t.dataset.id] === v) delete cur[t.dataset.id]; else cur[t.dataset.id] = v;  // tap again to undo
-      save(); renderBar();
-      const row = t.closest(".row");
-      row.classList.toggle("unvoted", cur[t.dataset.id] === undefined);
-      for (const b of row.querySelectorAll(".vbtn")) b.setAttribute("aria-pressed", String(cur[t.dataset.id] === +b.dataset.val));
+      save(); renderBar(); renderVote();
+      const again = document.querySelector(`.vbtn[data-who="${t.dataset.who}"][data-id="${t.dataset.id}"][data-val="${v}"]`);
+      if (again) again.focus({ preventScroll: true });
       return;
     }
   });
@@ -462,7 +492,12 @@ button { cursor: pointer; }
   [0, 1].forEach(i => $("name" + i).addEventListener("input", e => {
     S.names[i] = e.target.value.trim() || (i ? "Partner" : "Antti"); save(); renderBar(); renderShare();
   }));
-  $("hideOther").addEventListener("change", e => { S.hideOther = e.target.checked; save(); });
+  $("limitOn").addEventListener("change", e => { S.limits.on = e.target.checked; save(); renderShare(); });
+  [["limUp", "up"], ["limMid", "mid"], ["limDown", "down"]].forEach(([id, k]) => $(id).addEventListener("input", e => {
+    const n = parseInt(e.target.value, 10);
+    if (n >= 0 && n <= 50) { S.limits[k] = n; save(); renderShare(); }
+  }));
+  $("thirdsBtn").addEventListener("click", () => { S.limits = { on: true, up: 17, mid: 16, down: 17 }; save(); renderShare(); });
   $("exportWho").addEventListener("change", renderShare);
 
   const msg = (text, err) => { const m = $("shareMsg"); m.textContent = text; m.classList.toggle("err", !!err); };

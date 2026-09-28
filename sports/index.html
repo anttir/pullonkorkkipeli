@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Helsinki Sport Picker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: one narrow column, sticky voter bar on top, tabs for Vote / Results / Share. Colours: Baltic navy + sea-ice neutrals, a single tram-green accent. */
+:root {
+  --bg: #eef2f3;
+  --surface: #ffffff;
+  --ink: #12222e;
+  --muted: #5b6b76;
+  --line: #d5dde1;
+  --accent: #0a7d5a;
+  --accent-ink: #ffffff;
+  --navy: #163a57;
+  --up: #1d8a4e;
+  --up-soft: #dcf1e4;
+  --mid: #6d7b85;
+  --mid-soft: #e4e9ec;
+  --down: #c2412d;
+  --down-soft: #f8e1dc;
+  --font-display: "Familjen Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --radius: 12px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1820; --surface: #152430; --ink: #e6eef2; --muted: #93a5b1; --line: #26394a;
+    --accent: #3cc795; --accent-ink: #062117; --navy: #9cc6e6;
+    --up: #4fd08a; --up-soft: #173a29; --mid: #9aa9b3; --mid-soft: #22323e; --down: #f07d69; --down-soft: #43221d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1820; --surface: #152430; --ink: #e6eef2; --muted: #93a5b1; --line: #26394a;
+  --accent: #3cc795; --accent-ink: #062117; --navy: #9cc6e6;
+  --up: #4fd08a; --up-soft: #173a29; --mid: #9aa9b3; --mid-soft: #22323e; --down: #f07d69; --down-soft: #43221d;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.45;
+  -webkit-tap-highlight-color: transparent;
+}
+.wrap { max-width: 640px; margin: 0 auto; padding: 0 16px 48px; }
+h1, h2 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; color: var(--navy); }
+h2 { font-size: 1.15rem; font-weight: 600; }
+.intro { padding-block: 20px 8px; }
+.intro p { margin: 4px 0 0; color: var(--muted); font-size: 0.95rem; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* sticky bar */
+.bar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: var(--bg); padding-block: 10px; border-bottom: 1px solid var(--line);
+  display: grid; gap: 10px;
+}
+.seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--mid-soft); border-radius: 999px; padding: 4px; gap: 4px; }
+.seg.three { grid-template-columns: 1fr 1fr 1fr; }
+.seg button {
+  border: 0; background: transparent; border-radius: 999px; padding: 8px 10px; font-weight: 700;
+  color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgb(0 0 0 / 0.15); }
+.seg.voters button[aria-pressed="true"] { background: var(--navy); color: var(--bg); }
+.progress { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.meter { height: 4px; background: var(--mid-soft); border-radius: 2px; overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--accent); transition: width .25s; }
+
+/* filter chips */
+.chips { display: flex; gap: 6px; overflow-x: auto; padding-block: 12px 4px; scrollbar-width: none; }
+.chips button {
+  flex: none; border: 1px solid var(--line); background: var(--surface); border-radius: 999px;
+  padding: 5px 12px; font-size: 0.85rem; color: var(--muted);
+}
+.chips button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+
+/* vote list */
+.list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.row {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center;
+}
+.row .name { font-weight: 700; }
+.row .meta { font-size: 0.8rem; color: var(--muted); }
+.row .cat { text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.68rem; font-weight: 700; color: var(--navy); }
+.votes { display: flex; gap: 6px; }
+.vbtn {
+  width: 44px; height: 44px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--surface);
+  display: grid; place-items: center; color: var(--muted); padding: 0;
+}
+.vbtn svg { width: 22px; height: 22px; }
+.vbtn.up[aria-pressed="true"] { background: var(--up-soft); border-color: var(--up); color: var(--up); }
+.vbtn.mid[aria-pressed="true"] { background: var(--mid-soft); border-color: var(--mid); color: var(--ink); }
+.vbtn.down[aria-pressed="true"] { background: var(--down-soft); border-color: var(--down); color: var(--down); }
+.row.unvoted { border-style: dashed; }
+.other { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+/* results */
+.controls { display: grid; gap: 10px; padding-block: 14px 4px; }
+.field { display: grid; gap: 4px; }
+.field label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; color: var(--muted); }
+.field select {
+  width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface);
+}
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.algo-note { font-size: 0.9rem; color: var(--muted); margin: 0; }
+.rrow {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 10px 12px; display: grid; grid-template-columns: 2.2rem minmax(0, 1fr) auto auto; gap: 10px; align-items: center;
+}
+.rank { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+.rrow.top .rank { color: var(--accent); }
+.rrow.out { opacity: 0.55; }
+.pills { display: flex; gap: 4px; }
+.pill {
+  width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; font-weight: 700; font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+.pill.p1 { background: var(--up-soft); color: var(--up); }
+.pill.p0 { background: var(--mid-soft); color: var(--mid); }
+.pill.pn { background: var(--down-soft); color: var(--down); }
+.pill.pu { border: 1.5px dashed var(--line); color: var(--muted); }
+.score { min-width: 3.2rem; text-align: right; font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.8rem; color: var(--muted); padding-block: 4px; }
+
+/* share / settings */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: grid; gap: 10px; margin-top: 14px; }
+.panel p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+.panel input[type="text"], .panel textarea, .panel select {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg);
+}
+.panel textarea { min-height: 70px; font-family: ui-monospace, Menlo, monospace; font-size: 0.85rem; resize: vertical; }
+.code { font-family: ui-monospace, Menlo, monospace; font-size: 0.85rem; background: var(--bg); border-radius: 10px; padding: 10px 12px; word-break: break-all; user-select: all; }
+.btn {
+  border: 0; border-radius: 10px; padding: 11px 14px; font-weight: 700; background: var(--accent); color: var(--accent-ink);
+}
+.btn.ghost { background: transparent; border: 1.5px solid var(--line); color: var(--ink); }
+.btn.danger { background: var(--down); color: #fff; }
+.row-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.msg { font-size: 0.88rem; font-weight: 700; color: var(--accent); min-height: 1.2em; }
+.msg.err { color: var(--down); }
+.toggle { display: flex; align-items: center; gap: 10px; font-size: 0.95rem; }
+.toggle input { width: 20px; height: 20px; accent-color: var(--accent); }
+.empty { text-align: center; color: var(--muted); padding: 24px 8px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="intro">
+    <h1>Helsinki Sport Picker</h1>
+    <p>50 sports for two in the Helsinki region. Both of you vote, then let the maths pick.</p>
+  </header>
+
+  <div class="bar">
+    <div class="seg three" role="group" aria-label="View">
+      <button type="button" id="tab-vote" data-view="vote">Vote</button>
+      <button type="button" id="tab-results" data-view="results">Results</button>
+      <button type="button" id="tab-share" data-view="share">Share</button>
+    </div>
+    <div id="voterBlock" class="seg voters" role="group" aria-label="Who is voting">
+      <button type="button" id="voter-0" data-voter="0"></button>
+      <button type="button" id="voter-1" data-voter="1"></button>
+    </div>
+    <div id="progressBlock">
+      <div class="progress"><span id="progText"></span><span id="progCount"></span></div>
+      <div class="meter"><i id="progBar"></i></div>
+    </div>
+  </div>
+
+  <section id="view-vote">
+    <div class="chips" id="chips" role="group" aria-label="Category filter"></div>
+    <ul class="list" id="voteList"></ul>
+  </section>
+
+  <section id="view-results" hidden>
+    <div class="controls">
+      <div class="field">
+        <label for="algo">Scoring method</label>
+        <select id="algo"></select>
+      </div>
+      <p class="algo-note" id="algoNote"></p>
+      <div class="two">
+        <div class="field">
+          <label for="sortBy">Sort by</label>
+          <select id="sortBy">
+            <option value="score-desc">Points, high to low</option>
+            <option value="score-asc">Points, low to high</option>
+            <option value="name">Name A–Z</option>
+            <option value="cat">Category</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="catFilter">Category</label>
+          <select id="catFilter"></select>
+        </div>
+      </div>
+      <div class="legend" id="legend"></div>
+    </div>
+    <ul class="list" id="resultList"></ul>
+  </section>
+
+  <section id="view-share" hidden>
+    <div class="panel">
+      <h2>Names</h2>
+      <div class="two">
+        <div class="field"><label for="name0">Voter 1</label><input type="text" id="name0" maxlength="20"></div>
+        <div class="field"><label for="name1">Voter 2</label><input type="text" id="name1" maxlength="20"></div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="hideOther"> Hide the other person's votes while voting</label>
+    </div>
+
+    <div class="panel">
+      <h2>Voting on two phones?</h2>
+      <p>Votes are saved only in this browser. To combine phones, copy your vote code, send it over, and paste it into the other phone.</p>
+      <div class="field"><label for="exportWho">Copy the code for</label><select id="exportWho"></select></div>
+      <div class="code" id="exportCode"></div>
+      <div class="row-btns"><button type="button" class="btn" id="copyBtn">Copy code</button></div>
+      <div class="field"><label for="importCode">Paste a code</label><textarea id="importCode" placeholder="HSP1:Name:+0-…"></textarea></div>
+      <div class="field"><label for="importWho">Save it as the votes of</label><select id="importWho"></select></div>
+      <div class="row-btns"><button type="button" class="btn" id="importBtn">Import votes</button></div>
+      <div class="msg" id="shareMsg" role="status"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Start over</h2>
+      <p>Clears both people's votes from this browser.</p>
+      <div class="row-btns">
+        <button type="button" class="btn ghost" id="resetBtn">Clear all votes</button>
+        <button type="button" class="btn danger" id="resetConfirm" hidden>Yes, clear everything</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  // id, name, category, where/when note. Order matters: share codes encode votes by position, so only append.
+  const SPORTS = [
+    ["padel", "Padel", "Racket", "Indoor halls all over the city, year-round"],
+    ["tennis", "Tennis", "Racket", "Outdoor courts in summer, bubble halls in winter"],
+    ["badminton", "Badminton", "Racket", "Bookable courts at most sports centres"],
+    ["squash", "Squash", "Racket", "Fast, sweaty, 45 minutes is plenty"],
+    ["tabletennis", "Table tennis", "Racket", "Free outdoor tables in many parks"],
+    ["pickleball", "Pickleball", "Racket", "Growing fast, easy to learn together"],
+    ["bouldering", "Bouldering", "Climbing", "Indoor bouldering gyms, no ropes needed"],
+    ["toprope", "Rope climbing", "Climbing", "Belay each other at an indoor climbing gym"],
+    ["outdoorclimb", "Outdoor climbing", "Climbing", "Granite crags around the capital region"],
+    ["kayak", "Sea kayaking", "Water", "Paddle out to the islands off the shore"],
+    ["sup", "Stand-up paddling", "Water", "Rentals on many beaches in summer"],
+    ["canoe", "Canoeing", "Water", "Vantaa river and lakes in Nuuksio"],
+    ["sailing", "Sailing", "Water", "Beginner courses at local sailing clubs"],
+    ["windsurf", "Windsurfing", "Water", "Shallow bays make learning easier"],
+    ["swim", "Pool swimming", "Water", "Public swimming halls, including Yrjönkatu"],
+    ["openwater", "Open-water swimming", "Water", "Beaches and lakes, June to August"],
+    ["winterswim", "Winter swimming", "Water", "Ice-hole dip plus sauna, e.g. at Allas Sea Pool"],
+    ["xcski", "Cross-country skiing", "Winter", "Lit tracks at Paloheinä and Central Park"],
+    ["downhill", "Downhill skiing", "Winter", "Small slopes nearby, Talma a short drive away"],
+    ["snowboard", "Snowboarding", "Winter", "Same slopes, or Kivikko indoor ski hall"],
+    ["skate", "Ice skating", "Winter", "Free outdoor rinks all over the city in winter"],
+    ["tourskate", "Long-distance skating", "Winter", "Nordic tour skating on sea or lake ice when it's safe"],
+    ["snowshoe", "Snowshoeing", "Winter", "Quiet trails in Nuuksio and Sipoonkorpi"],
+    ["run", "Running", "Endurance", "Seaside routes and park trails in the city"],
+    ["trailrun", "Trail running", "Endurance", "Nuuksio and Central Park trails"],
+    ["hike", "Hiking", "Endurance", "Nuuksio National Park, 40 minutes from the centre"],
+    ["roadbike", "Road cycling", "Endurance", "Coastal roads west towards Espoo and Kirkkonummi"],
+    ["mtb", "Mountain biking", "Endurance", "Singletrack in Central Park and Paloheinä"],
+    ["fatbike", "Fatbiking", "Winter", "Snowy trails when skiing conditions are poor"],
+    ["orienteering", "Orienteering", "Endurance", "Weekly beginner-friendly events in summer"],
+    ["nordicwalk", "Nordic walking", "Endurance", "Easy to do anywhere, any season"],
+    ["inline", "Inline skating", "Endurance", "Smooth seaside paths in summer"],
+    ["discgolf", "Disc golf", "Precision", "Dozens of free courses around the region"],
+    ["golf", "Golf", "Precision", "Driving ranges and courses around the region"],
+    ["minigolf", "Mini golf", "Precision", "Indoor and outdoor courses, low effort, high banter"],
+    ["bowling", "Bowling", "Precision", "Bowling alleys in the city and suburbs"],
+    ["archery", "Archery", "Precision", "Try-out sessions at local archery clubs"],
+    ["beachvolley", "Beach volleyball", "Ball", "Hietaranta beach in summer, sand halls in winter"],
+    ["frisbee", "Frisbee throwing", "Ball", "Any park, zero cost"],
+    ["yoga", "Yoga", "Studio", "Couples or regular classes in many studios"],
+    ["acroyoga", "AcroYoga", "Studio", "Partner yoga with lifts and balances"],
+    ["salsa", "Salsa", "Dance", "Beginner couple courses run every season"],
+    ["ballroom", "Ballroom dancing", "Dance", "Classic couple dances at dance schools"],
+    ["lindy", "Lindy hop / swing", "Dance", "Social dance scene with regular beginner courses"],
+    ["boxing", "Boxing", "Combat", "Pad work together at a boxing gym"],
+    ["bjj", "Brazilian jiu-jitsu", "Combat", "Grappling classes for beginners"],
+    ["fencing", "Fencing", "Combat", "Beginner courses at local fencing clubs"],
+    ["gym", "Gym training", "Fitness", "Train side by side, same schedule"],
+    ["trampoline", "Trampoline park", "Fitness", "Indoor jump parks around the region"],
+    ["riding", "Horse riding", "Outdoor", "Riding schools on the edges of the city"],
+  ].map(([id, name, cat, note]) => ({ id, name, cat, note }));
+
+  const CATS = [...new Set(SPORTS.map(s => s.cat))];
+
+  // Each algorithm returns { score, out } for votes a, b in {-1, 0, 1} (unvoted counts as 0).
+  const ALGOS = {
+    sum: { label: "Total points", note: "Your two votes added together (−2 to +2). Ties are broken by the lower of the two votes.",
+      fn: (a, b) => ({ score: a + b, tie: Math.min(a, b) }) },
+    maximin: { label: "Least disliked", note: "Ranks by the unhappier person's vote. A sport you both find OK beats one only one of you loves.",
+      fn: (a, b) => ({ score: Math.min(a, b), tie: a + b }) },
+    product: { label: "Shared happiness", note: "Multiplies happiness (thumbs down = 1, neutral = 2, thumbs up = 3). Rewards sports you both like over lopsided ones. Range 1–9.",
+      fn: (a, b) => ({ score: (a + 2) * (b + 2), tie: a + b }) },
+    veto: { label: "Veto", note: "Any thumbs down is a veto: the sport drops out. The rest are ranked by total points.",
+      fn: (a, b) => ({ score: a + b, tie: 0, out: a < 0 || b < 0 }) },
+    approval: { label: "Thumbs-up count", note: "Counts only thumbs up. Good for finding things at least one of you is excited about.",
+      fn: (a, b) => ({ score: (a > 0) + (b > 0), tie: a + b }) },
+    conflict: { label: "Most disagreement", note: "Distance between your votes (0–2). The top of this list is what to talk about.",
+      fn: (a, b) => ({ score: Math.abs(a - b), tie: -(a + b) }) },
+  };
+
+  const KEY = "helsinki-sport-picker-v1";
+  const defaults = () => ({ names: ["Antti", "Partner"], votes: [{}, {}], voter: 0, view: "vote", hideOther: true, algo: "sum", sort: "score-desc", cat: "All", voteCat: "All" });
+  let S = defaults();
+  try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign(defaults(), JSON.parse(raw)); } catch (e) {}
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const vote = (who, id) => S.votes[who][id];
+  const fmt = v => v === undefined ? "·" : v > 0 ? "+1" : v < 0 ? "−1" : "0";
+  const pillCls = v => v === undefined ? "pu" : v > 0 ? "p1" : v < 0 ? "pn" : "p0";
+
+  const ICON = {
+    up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10v11H4V10h3z" fill="none"/><path d="M7 10l4-8a2.5 2.5 0 0 1 3 2.5V9h5a2 2 0 0 1 2 2.3l-1.4 8A2 2 0 0 1 17.6 21H7"/></svg>',
+    mid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>',
+    down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 14V3h3v11h-3z" fill="none"/><path d="M17 14l-4 8a2.5 2.5 0 0 1-3-2.5V15H5a2 2 0 0 1-2-2.3l1.4-8A2 2 0 0 1 6.4 3H17"/></svg>',
+  };
+
+  function renderBar() {
+    for (const b of document.querySelectorAll("[data-view]")) b.setAttribute("aria-pressed", String(b.dataset.view === S.view));
+    for (const v of ["vote", "results", "share"]) $("view-" + v).hidden = S.view !== v;
+    $("voterBlock").hidden = S.view !== "vote";
+    [0, 1].forEach(i => { const b = $("voter-" + i); b.textContent = S.names[i]; b.setAttribute("aria-pressed", String(S.voter === i)); });
+    const n = SPORTS.filter(s => vote(S.voter, s.id) !== undefined).length;
+    const both = SPORTS.filter(s => vote(0, s.id) !== undefined && vote(1, s.id) !== undefined).length;
+    if (S.view === "vote") {
+      $("progText").textContent = S.names[S.voter] + " has voted";
+      $("progCount").textContent = n + " / " + SPORTS.length;
+      $("progBar").style.width = (100 * n / SPORTS.length) + "%";
+    } else {
+      $("progText").textContent = "Voted by both";
+      $("progCount").textContent = both + " / " + SPORTS.length;
+      $("progBar").style.width = (100 * both / SPORTS.length) + "%";
+    }
+  }
+
+  function renderVote() {
+    $("chips").innerHTML = ["All", ...CATS].map(c =>
+      `<button type="button" data-chip="${esc(c)}" aria-pressed="${S.voteCat === c}">${esc(c)}</button>`).join("");
+    const other = 1 - S.voter;
+    const items = SPORTS.filter(s => S.voteCat === "All" || s.cat === S.voteCat);
+    $("voteList").innerHTML = items.map(s => {
+      const v = vote(S.voter, s.id);
+      const ov = vote(other, s.id);
+      const btn = (kind, val, label) =>
+        `<button type="button" class="vbtn ${kind}" data-id="${s.id}" data-val="${val}" aria-pressed="${v === val}" aria-label="${label} ${esc(s.name)}">${ICON[kind]}</button>`;
+      return `<li class="row${v === undefined ? " unvoted" : ""}">
+        <div style="min-width:0">
+          <div class="cat">${esc(s.cat)}</div>
+          <div class="name">${esc(s.name)}</div>
+          <div class="meta">${esc(s.note)}</div>
+          ${S.hideOther ? "" : `<div class="other">${esc(S.names[other])}: ${ov === undefined ? "not voted" : fmt(ov)}</div>`}
+        </div>
+        <div class="votes">${btn("up", 1, "Thumbs up")}${btn("mid", 0, "Neutral")}${btn("down", -1, "Thumbs down")}</div>
+      </li>`;
+    }).join("");
+  }
+
+  function renderResults() {
+    const algoSel = $("algo");
+    if (!algoSel.options.length) algoSel.innerHTML = Object.entries(ALGOS).map(([k, a]) => `<option value="${k}">${esc(a.label)}</option>`).join("");
+    const catSel = $("catFilter");
+    if (!catSel.options.length) catSel.innerHTML = ["All", ...CATS].map(c => `<option>${esc(c)}</option>`).join("");
+    algoSel.value = S.algo; $("sortBy").value = S.sort; catSel.value = S.cat;
+    const A = ALGOS[S.algo];
+    $("algoNote").textContent = A.note;
+    $("legend").innerHTML = `<span>Left pill: ${esc(S.names[0])}</span><span>Right pill: ${esc(S.names[1])}</span><span>· = not voted (counts as 0)</span>`;
+
+    const rows = SPORTS.filter(s => S.cat === "All" || s.cat === S.cat).map(s => {
+      const a = vote(0, s.id), b = vote(1, s.id);
+      const r = A.fn(a ?? 0, b ?? 0);
+      return { s, a, b, score: r.score, tie: r.tie, out: !!r.out };
+    });
+
+    // Rank is always by score (competition ranking: 1, 2, 2, 4), independent of the display sort.
+    const byScore = [...rows].sort((x, y) => (x.out - y.out) || (y.score - x.score) || (y.tie - x.tie));
+    let prev = null;
+    byScore.forEach((r, i) => {
+      if (r.out) { r.rank = "–"; return; }
+      r.rank = prev && prev.score === r.score && prev.tie === r.tie ? prev.rank : i + 1;
+      prev = r;
+    });
+
+    let list;
+    if (S.sort === "score-desc") list = byScore;
+    else if (S.sort === "score-asc") list = [...byScore].reverse();
+    else if (S.sort === "name") list = [...rows].sort((x, y) => x.s.name.localeCompare(y.s.name));
+    else list = [...rows].sort((x, y) => x.s.cat.localeCompare(y.s.cat) || (y.score - x.score));
+
+    const anyVotes = rows.some(r => r.a !== undefined || r.b !== undefined);
+    $("resultList").innerHTML = (anyVotes ? "" : `<li class="empty">No votes yet. Go to Vote and give each sport a thumbs up, neutral or thumbs down.</li>`) +
+      list.map(r => `<li class="rrow${r.out ? " out" : ""}${r.rank === 1 ? " top" : ""}">
+        <div class="rank">${r.rank}</div>
+        <div style="min-width:0"><div class="name">${esc(r.s.name)}</div><div class="meta">${esc(r.s.cat)}${r.out ? " · vetoed" : ""}</div></div>
+        <div class="pills"><span class="pill ${pillCls(r.a)}" title="${esc(S.names[0])}">${fmt(r.a)}</span><span class="pill ${pillCls(r.b)}" title="${esc(S.names[1])}">${fmt(r.b)}</span></div>
+        <div class="score">${r.out ? "✕" : (r.score > 0 && S.algo === "sum" ? "+" : "") + r.score}</div>
+      </li>`).join("");
+  }
+
+  // Share code: HSP1:<name>:<one char per sport: + 0 - .>
+  const encode = who => "HSP1:" + S.names[who].replace(/:/g, "") + ":" +
+    SPORTS.map(s => { const v = vote(who, s.id); return v === undefined ? "." : v > 0 ? "+" : v < 0 ? "-" : "0"; }).join("");
+
+  function renderShare() {
+    $("name0").value = S.names[0]; $("name1").value = S.names[1];
+    $("hideOther").checked = S.hideOther;
+    const opts = [0, 1].map(i => `<option value="${i}">${esc(S.names[i])}</option>`).join("");
+    const ew = $("exportWho").value || "0", iw = $("importWho").value || "1";
+    $("exportWho").innerHTML = opts; $("importWho").innerHTML = opts;
+    $("exportWho").value = ew; $("importWho").value = iw;
+    $("exportCode").textContent = encode(+ew);
+  }
+
+  function render() {
+    renderBar();
+    if (S.view === "vote") renderVote();
+    if (S.view === "results") renderResults();
+    if (S.view === "share") renderShare();
+  }
+
+  document.addEventListener("click", e => {
+    const t = e.target.closest("button");
+    if (!t) return;
+    if (t.dataset.view) { S.view = t.dataset.view; save(); render(); window.scrollTo(0, 0); return; }
+    if (t.dataset.voter) { S.voter = +t.dataset.voter; save(); render(); return; }
+    if (t.dataset.chip) { S.voteCat = t.dataset.chip; save(); render(); return; }
+    if (t.dataset.id) {
+      const v = +t.dataset.val, cur = S.votes[S.voter];
+      if (cur[t.dataset.id] === v) delete cur[t.dataset.id]; else cur[t.dataset.id] = v;  // tap again to undo
+      save(); renderBar();
+      const row = t.closest(".row");
+      row.classList.toggle("unvoted", cur[t.dataset.id] === undefined);
+      for (const b of row.querySelectorAll(".vbtn")) b.setAttribute("aria-pressed", String(cur[t.dataset.id] === +b.dataset.val));
+      return;
+    }
+  });
+
+  $("algo").addEventListener("change", e => { S.algo = e.target.value; save(); renderResults(); });
+  $("sortBy").addEventListener("change", e => { S.sort = e.target.value; save(); renderResults(); });
+  $("catFilter").addEventListener("change", e => { S.cat = e.target.value; save(); renderResults(); });
+
+  [0, 1].forEach(i => $("name" + i).addEventListener("input", e => {
+    S.names[i] = e.target.value.trim() || (i ? "Partner" : "Antti"); save(); renderBar(); renderShare();
+  }));
+  $("hideOther").addEventListener("change", e => { S.hideOther = e.target.checked; save(); });
+  $("exportWho").addEventListener("change", renderShare);
+
+  const msg = (text, err) => { const m = $("shareMsg"); m.textContent = text; m.classList.toggle("err", !!err); };
+  $("copyBtn").addEventListener("click", () => {
+    const code = $("exportCode").textContent;
+    const fallback = () => { const r = document.createRange(); r.selectNodeContents($("exportCode")); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); msg("Code selected. Copy it from the menu."); };
+    try { navigator.clipboard.writeText(code).then(() => msg("Copied. Send it to the other phone."), fallback); } catch (e) { fallback(); }
+  });
+  $("importBtn").addEventListener("click", () => {
+    const m = $("importCode").value.trim().match(/^HSP1:([^:]*):([+0.\-]+)$/);
+    if (!m) return msg("That doesn't look like a vote code. It should start with HSP1:", true);
+    const who = +$("importWho").value, v = {};
+    [...m[2]].forEach((c, i) => { if (SPORTS[i] && c !== ".") v[SPORTS[i].id] = c === "+" ? 1 : c === "-" ? -1 : 0; });
+    S.votes[who] = v;
+    if (m[1]) S.names[who] = m[1];
+    save(); render();
+    msg(`Imported ${Object.keys(v).length} votes for ${S.names[who]}.`);
+    $("importCode").value = "";
+  });
+  $("resetBtn").addEventListener("click", () => { $("resetConfirm").hidden = false; });
+  $("resetConfirm").addEventListener("click", () => {
+    S.votes = [{}, {}]; save(); $("resetConfirm").hidden = true; render(); msg("All votes cleared.");
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

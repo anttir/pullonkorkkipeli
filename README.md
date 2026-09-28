@@ -20,3 +20,7 @@ Moninpelattava reaktiopeli selaimessa. WebRTC peer-to-peer, ei palvelinta.
 ## Teknologia
 
 HTML + CSS + JS, PeerJS (WebRTC), GitHub Pages
+
+## Helsinki Sport Picker
+
+`sports/index.html` – kahden hengen äänestys 50 urheilulajista pääkaupunkiseudulla (👍 / 0 / 👎), tulokset kuudella pisteytystavalla. Äänet tallentuvat selaimen localStorageen; kahden puhelimen äänet yhdistetään Share-välilehden koodilla.
